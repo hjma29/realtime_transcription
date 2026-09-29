@@ -17,7 +17,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import queue
 import sys
 
 import sounddevice as sd
@@ -49,7 +48,7 @@ def on_event(event: RealtimeSessionEvent) -> None:
 
 async def dictate(device: int | str | None) -> str:
     client = AsyncTogether()
-    audio_queue: "queue.Queue[bytes]" = queue.Queue()
+    audio_queue: "asyncio.Queue[bytes]" = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
     def audio_callback(indata, frames, time_info, status) -> None:
@@ -78,7 +77,10 @@ async def dictate(device: int | str | None) -> str:
             print("Listening... speak now (Ctrl+C to stop)")
             try:
                 while True:
-                    chunk = await loop.run_in_executor(None, audio_queue.get)
+                    # A plain asyncio.Queue.get() (no background thread) so
+                    # Ctrl+C interrupts cleanly instead of leaving a blocked
+                    # executor thread that hangs process exit.
+                    chunk = await audio_queue.get()
                     await session.append(chunk)
             except (KeyboardInterrupt, asyncio.CancelledError):
                 pass
