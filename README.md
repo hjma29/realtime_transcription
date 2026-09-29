@@ -18,10 +18,26 @@ pip install "together[realtime] @ git+https://github.com/togethercomputer/togeth
 
 ## Usage
 
+### From a WAV file
+
 ```bash
 export TOGETHER_API_KEY=...
 python3 examples/realtime_transcription.py audio.wav   # 16 kHz mono s16le WAV
 ```
+
+### Live dictation from your microphone
+
+```bash
+pip install sounddevice numpy
+export TOGETHER_API_KEY=...
+python3 examples/realtime_mic_transcription.py
+```
+
+Speaks aloud and streams live PCM straight from the default mic to
+Together.AI, printing interim text as you talk and a finalized transcript
+per utterance. Press Ctrl+C to stop and print the full transcript. Requires
+mic permission for your terminal app (macOS: System Settings > Privacy &
+Security > Microphone).
 
 ## Verified
 
