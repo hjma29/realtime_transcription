@@ -9,7 +9,9 @@ utterance. Press Ctrl+C to stop and flush the final transcript.
 Usage:
     pip install "together[realtime]" sounddevice numpy
     export TOGETHER_API_KEY=...
-    python3 examples/realtime_mic_transcription.py
+    python3 examples/realtime_mic_transcription.py               # default input device
+    python3 examples/realtime_mic_transcription.py --list-devices
+    python3 examples/realtime_mic_transcription.py --device 2     # e.g. AirPods mic
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ def on_event(event: RealtimeSessionEvent) -> None:
         print(f"final: {event.text}")
 
 
-async def dictate() -> str:
+async def dictate(device: int | str | None) -> str:
     client = AsyncTogether()
     audio_queue: "queue.Queue[bytes]" = queue.Queue()
     loop = asyncio.get_running_loop()
@@ -55,6 +57,9 @@ async def dictate() -> str:
         if status:
             print(status, file=sys.stderr)
         loop.call_soon_threadsafe(audio_queue.put_nowait, bytes(indata))
+
+    info = sd.query_devices(device, "input")
+    print(f"input device: {info['name']} (index {info.get('index', device)})")
 
     async with client.beta.realtime.transcription(
         model=MODEL,
@@ -66,6 +71,7 @@ async def dictate() -> str:
             blocksize=CHUNK_FRAMES,
             channels=1,
             dtype="int16",
+            device=device,
             callback=audio_callback,
         )
         with stream:
@@ -81,7 +87,18 @@ async def dictate() -> str:
 
 
 async def main() -> None:
-    transcript = await dictate()
+    if "--list-devices" in sys.argv:
+        print(sd.query_devices())
+        return
+
+    device: int | str | None = None
+    if "--device" in sys.argv:
+        idx = sys.argv.index("--device")
+        device = sys.argv[idx + 1]
+        if device.isdigit():
+            device = int(device)
+
+    transcript = await dictate(device)
     print(f"\nfull transcript: {transcript}")
 
 

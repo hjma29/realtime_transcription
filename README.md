@@ -30,14 +30,21 @@ python3 examples/realtime_transcription.py audio.wav   # 16 kHz mono s16le WAV
 ```bash
 pip install sounddevice numpy
 export TOGETHER_API_KEY=...
-python3 examples/realtime_mic_transcription.py
+python3 examples/realtime_mic_transcription.py               # default input device
+python3 examples/realtime_mic_transcription.py --list-devices  # find your AirPods' index
+python3 examples/realtime_mic_transcription.py --device 2      # use that device explicitly
 ```
 
-Speaks aloud and streams live PCM straight from the default mic to
-Together.AI, printing interim text as you talk and a finalized transcript
-per utterance. Press Ctrl+C to stop and print the full transcript. Requires
-mic permission for your terminal app (macOS: System Settings > Privacy &
-Security > Microphone).
+Streams live PCM straight from the mic to Together.AI, printing interim
+text as you talk and a finalized transcript per utterance. Press Ctrl+C to
+stop and print the full transcript. Requires mic permission for your
+terminal app (macOS: System Settings > Privacy & Security > Microphone).
+
+**Using AirPods**: pair/connect them normally (macOS routes both playback
+and mic through the same Bluetooth profile once selected as the input
+device in System Settings > Sound, or via `--device <index>` above).
+AirPods' Bluetooth mic (HFP) is natively 16kHz mono, matching this script's
+required format exactly.
 
 ## Verified
 
