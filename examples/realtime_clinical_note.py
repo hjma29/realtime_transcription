@@ -120,7 +120,14 @@ def structure_transcript(
             },
         },
     )
-    return ClinicalNote.model_validate_json(completion.choices[0].message.content)
+    note = ClinicalNote.model_validate_json(completion.choices[0].message.content)
+    # Compliance guardrail: the JSON schema's "default: true" only applies
+    # when a field is *absent*, it does not restrict the LLM from
+    # explicitly emitting `false` (observed once with a candidate
+    # structuring model). Force it here so no model output can ever
+    # bypass the human-review requirement.
+    note.requires_human_review = True
+    return note
 
 
 # --- audio sources: live mic, or a pre-recorded WAV file ---------------------
