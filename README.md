@@ -18,60 +18,53 @@ pip install "together[realtime] @ git+https://github.com/togethercomputer/togeth
 
 ## Usage
 
-### From a WAV file
+### One-command demo: live dictation -> structured JSON note (`realtime_clinical_note.py`)
+
+This is the main script — a single file, single command, no manual
+copy/paste between steps. It streams audio (mic or a WAV file) to
+Together's realtime ASR and structures the transcript into a JSON clinical
+note + draft billing codes *incrementally*, updating live after every
+finalized utterance rather than only once at the end.
 
 ```bash
+pip install "together[realtime] @ git+https://github.com/togethercomputer/together-py.git" sounddevice numpy pydantic
 export TOGETHER_API_KEY=...
-python3 examples/realtime_transcription.py audio.wav   # 16 kHz mono s16le WAV
+
+python3 examples/realtime_clinical_note.py --list-devices     # find your AirPods' index
+python3 examples/realtime_clinical_note.py --device 1          # live mic dictation
+python3 examples/realtime_clinical_note.py --file audio.wav    # 16 kHz mono WAV instead of mic
 ```
 
-### Live dictation from your microphone
+Each live update reuses the previous JSON note as a "sticky baseline" so
+already-confirmed fields (e.g. `exam_findings`, `plan`) only get added to or
+refined, never disappear just because the newest sentence is still
+mid-thought or being ASR-corrected. Draft billing codes are always flagged
+`requires_human_review: true` and must be verified by a certified coder
+before submission.
 
-```bash
-pip install sounddevice numpy
-export TOGETHER_API_KEY=...
-python3 examples/realtime_mic_transcription.py               # default input device
-python3 examples/realtime_mic_transcription.py --list-devices  # find your AirPods' index
-python3 examples/realtime_mic_transcription.py --device 2      # use that device explicitly
-```
+See [`DEMO.md`](DEMO.md) for the exact commands to run in front of an
+audience, and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the pipeline/design
+diagrams.
 
-Streams live PCM straight from the mic to Together.AI, printing interim
-text as you talk and a finalized transcript per utterance. Press Ctrl+C to
-stop and print the full transcript. Requires mic permission for your
-terminal app (macOS: System Settings > Privacy & Security > Microphone).
+### Individual pieces (for reference / experimentation)
 
-**Using AirPods**: pair/connect them normally (macOS routes both playback
-and mic through the same Bluetooth profile once selected as the input
-device in System Settings > Sound, or via `--device <index>` above).
-AirPods' Bluetooth mic (HFP) is natively 16kHz mono, matching this script's
-required format exactly.
+The combined script above is composed from these standalone pieces, kept
+in the repo for reference:
 
-### Structured clinical note (JSON output, post-ASR)
-
-Ported from Together AI's official
-[structured-outputs sample](https://github.com/togethercomputer/skills/blob/main/skills/together-chat-completions/scripts/structured_outputs.py)
-(`togethercomputer/skills`), adapted for clinical note + draft billing codes:
-
-```bash
-pip install "together>=2.0.0" pydantic
-export TOGETHER_API_KEY=...
-python3 examples/structured_clinical_note.py transcript.txt
-```
-
-Takes a raw ASR transcript (e.g. the `full transcript:` output from the two
-scripts above), normalizes spoken-punctuation artifacts, and returns a
-JSON object matching a Pydantic schema (`chief_complaint`,
-`history_of_present_illness`, `exam_findings`, `assessment`, `plan`,
-`draft_billing_codes`, `requires_human_review`) via Together's
-`response_format: json_schema` — the model's output is constrained to
-match the schema exactly, not just prompted to "please output JSON".
-Draft billing codes are always flagged `requires_human_review: true` and
-must be verified by a certified coder before submission.
+- **`examples/realtime_transcription.py`** — file-based ASR only (ported
+  from together-py's example): `python3 examples/realtime_transcription.py audio.wav`
+- **`examples/realtime_mic_transcription.py`** — live mic ASR only, with
+  `--list-devices`/`--device` flags: `python3 examples/realtime_mic_transcription.py --device 1`
+- **`examples/structured_clinical_note.py`** — JSON structuring only, given
+  a raw transcript text file (ported from Together AI's official
+  [structured-outputs sample](https://github.com/togethercomputer/skills/blob/main/skills/together-chat-completions/scripts/structured_outputs.py)
+  in `togethercomputer/skills`): `python3 examples/structured_clinical_note.py transcript.txt`
 
 ## Verified
 
-Ran successfully against a generated 16kHz mono WAV test clip (via macOS `say`
-+ `afconvert`), producing correct interim and final transcripts. Also ran
-`structured_clinical_note.py` against a real transcribed physician referral
-letter (NCH Express Scribe medical dictation sample), producing correct
-structured JSON output including a plausible draft ICD-10 code.
+Ran successfully against a real transcribed physician referral letter (NCH
+Express Scribe medical dictation sample) via both live AirPods dictation and
+a converted WAV file, producing a correct final structured JSON note
+(chief complaint, HPI, exam findings, assessment, plan, and a plausible
+draft ICD-10 code) with live incremental updates that no longer flicker
+fields on/off between updates.
