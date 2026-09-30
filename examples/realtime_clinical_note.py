@@ -65,9 +65,30 @@ class ClinicalNote(BaseModel):
 # --- structured JSON note, given a transcript (blocking sync call) -----------
 
 
-def structure_transcript(transcript: str) -> ClinicalNote:
-    """Turn a raw ASR transcript into a schema-constrained clinical note."""
+def structure_transcript(
+    transcript: str, previous_note: ClinicalNote | None = None
+) -> ClinicalNote:
+    """Turn a raw ASR transcript into a schema-constrained clinical note.
+
+    If `previous_note` is given (the last live-update result), it's passed
+    back in as context and the model is told to treat it as "sticky" —
+    only add/refine fields, never silently drop a previously-confirmed
+    field just because the newest transcript increment is mid-sentence or
+    still being ASR-corrected. Without this, every call re-derives the
+    whole note from scratch and fields can flicker on/off between updates.
+    """
     client = Together()
+    user_content = transcript
+    if previous_note is not None:
+        user_content = (
+            "Previously extracted note (treat as a sticky baseline — keep "
+            "every field unless the new transcript below clearly "
+            "contradicts or refines it; never drop a confirmed field just "
+            "because the newest sentence is incomplete):\n"
+            f"{json.dumps(previous_note.model_dump())}\n\n"
+            f"Full transcript so far:\n{transcript}"
+        )
+
     completion = client.chat.completions.create(
         model=STRUCTURING_MODEL,
         temperature=0,
@@ -83,10 +104,13 @@ def structure_transcript(transcript: str) -> ClinicalNote:
                     "those into real punctuation/paragraphs. Extract a structured "
                     "clinical note matching the given JSON schema from whatever has "
                     "been said so far. Billing codes are drafts only; never fabricate "
-                    "a code you are not reasonably confident about."
+                    "a code you are not reasonably confident about. If a previously "
+                    "extracted note is provided, update it incrementally rather than "
+                    "re-deriving everything from scratch — keep confirmed fields "
+                    "stable across updates."
                 ),
             },
-            {"role": "user", "content": transcript},
+            {"role": "user", "content": user_content},
         ],
         response_format={
             "type": "json_schema",
@@ -188,7 +212,7 @@ async def run_session(audio_source) -> tuple[str, ClinicalNote | None]:
                 pending_rerun = False
                 text = " ".join(finalized)
                 latest_note = await loop.run_in_executor(
-                    None, structure_transcript, text
+                    None, structure_transcript, text, latest_note
                 )
                 print("\n=== structured note (live update) ===")
                 print(json.dumps(latest_note.model_dump(), indent=2))
@@ -222,7 +246,7 @@ async def run_session(audio_source) -> tuple[str, ClinicalNote | None]:
     # One guaranteed final pass over the complete transcript, in case the
     # debounced live-update stream was still catching up when audio ended.
     latest_note = await loop.run_in_executor(
-        None, structure_transcript, " ".join(finalized)
+        None, structure_transcript, " ".join(finalized), latest_note
     )
 
     return transcript, latest_note
