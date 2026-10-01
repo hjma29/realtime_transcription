@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 *.wav
 *.aiff
+web/logs/*.json
+.marimo/
+__marimo__/

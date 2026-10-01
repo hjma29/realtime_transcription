@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Realtime Clinical Dictation Demo</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Realtime Clinical Dictation Demo</h1>
+    <p class="subtitle">
+      Mic &rarr; Together.AI streaming ASR (<code>whisper-large-v3</code>) &rarr;
+      incremental structured JSON note (<code>Llama-3.3-70B-Instruct-Turbo</code>)
+    </p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <button id="dictateBtn" class="dictate-btn">&#9679; Start Dictation</button>
+      <span id="status" class="status">idle</span>
+    </section>
+
+    <section class="metrics">
+      <div class="metric-card">
+        <div class="metric-label">Last TTFS</div>
+        <div id="lastTtfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mean TTFS</div>
+        <div id="meanTtfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">p95 TTFS</div>
+        <div id="p95Ttfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Segments</div>
+        <div id="segCount" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Last structuring</div>
+        <div id="lastStructuring" class="metric-value">&mdash;</div>
+      </div>
+    </section>
+
+    <section class="panels">
+      <div class="panel">
+        <h2>Transcript</h2>
+        <div id="transcript" class="transcript-box">
+          <span class="placeholder">Press "Start Dictation" and speak…</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>EHR Note Preview <span class="draft-badge" id="draftBadge">DRAFT — Pending Review</span></h2>
+        <div id="noteChart" class="ehr-chart">
+          <p class="placeholder">Structured note will populate here as you dictate…</p>
+        </div>
+        <div class="ehr-actions">
+          <button id="attestBtn" class="attest-btn" disabled>Attest &amp; Send to EHR</button>
+          <span id="attestNote" class="attest-note"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="pattern-note">
+      Modeled on the ambient-scribe write-back pattern used by Nuance DAX /
+      Microsoft Dragon Copilot, Abridge, Suki AI, Nabla, and Ambience
+      Healthcare: streaming ASR &rarr; LLM-structured SOAP note + draft
+      ICD-10/CPT codes &rarr; mandatory clinician review &rarr; FHIR
+      write-back into the EHR chart (DocumentReference / Condition /
+      Procedure resources) — never auto-submitted without sign-off.
+    </section>
+
+    <footer id="footerNote" class="footer-note"></footer>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

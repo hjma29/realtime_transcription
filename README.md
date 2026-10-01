@@ -18,6 +18,23 @@ pip install "together[realtime] @ git+https://github.com/togethercomputer/togeth
 
 ## Usage
 
+### Live web demo (for a panel/interview): `web/server.py`
+
+A local browser UI — click "Start Dictation", speak into your mic, and see
+live interim/finalized transcript, TTFS latency metrics, and an
+EHR-chart-style structured note (modeled on how Nuance DAX/Dragon Copilot,
+Abridge, Suki, Nabla, and Ambience Healthcare present drafts for clinician
+sign-off). See [`web/README.md`](web/README.md) for setup, architecture,
+and a companion `notebook/demo_notebook.py` (marimo) that replays a saved
+session's metrics as a polished backup if live mic/network isn't
+cooperating.
+
+```bash
+pip install fastapi "uvicorn[standard]"
+export TOGETHER_API_KEY=...
+python3 web/server.py       # open http://localhost:8000
+```
+
 ### One-command demo: live dictation -> structured JSON note (`realtime_clinical_note.py`)
 
 This is the main script — a single file, single command, no manual

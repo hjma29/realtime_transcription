@@ -1,0 +1,245 @@
+const dictateBtn = document.getElementById("dictateBtn");
+const statusEl = document.getElementById("status");
+const transcriptEl = document.getElementById("transcript");
+const noteChartEl = document.getElementById("noteChart");
+const draftBadgeEl = document.getElementById("draftBadge");
+const attestBtn = document.getElementById("attestBtn");
+const attestNoteEl = document.getElementById("attestNote");
+const footerNoteEl = document.getElementById("footerNote");
+
+const lastTtfsEl = document.getElementById("lastTtfs");
+const meanTtfsEl = document.getElementById("meanTtfs");
+const p95TtfsEl = document.getElementById("p95Ttfs");
+const segCountEl = document.getElementById("segCount");
+const lastStructuringEl = document.getElementById("lastStructuring");
+
+let audioCtx = null;
+let micStream = null;
+let workletNode = null;
+let ws = null;
+let recording = false;
+let interimSpan = null;
+
+function fmtMs(ms) {
+  if (ms === null || ms === undefined) return "—";
+  return `${Math.round(ms)}ms`;
+}
+
+function setStatus(text) {
+  statusEl.textContent = text;
+}
+
+function resetUi() {
+  transcriptEl.innerHTML = '<span class="placeholder">Press "Start Dictation" and speak…</span>';
+  noteChartEl.innerHTML = '<p class="placeholder">Structured note will populate here as you dictate…</p>';
+  draftBadgeEl.textContent = "DRAFT — Pending Review";
+  attestBtn.disabled = true;
+  attestBtn.classList.remove("enabled");
+  attestNoteEl.textContent = "";
+  footerNoteEl.textContent = "";
+  lastTtfsEl.textContent = "—";
+  meanTtfsEl.textContent = "—";
+  p95TtfsEl.textContent = "—";
+  segCountEl.textContent = "0";
+  lastStructuringEl.textContent = "—";
+}
+
+// Renders the structured note the way real ambient-scribe products (DAX
+// Copilot, Abridge, Suki, Nabla, Ambience) present a draft for sign-off:
+// labeled chart sections instead of raw JSON, billing codes as distinct
+// chips, and an explicit "requires human review" flag -- never implying
+// the note is final or already in the chart.
+function renderNoteChart(note) {
+  if (!note) return;
+  const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const section = (label, bodyHtml) =>
+    `<div class="ehr-section"><div class="ehr-section-label">${label}</div><div class="ehr-section-body">${bodyHtml}</div></div>`;
+
+  const examList = (note.exam_findings || []).length
+    ? `<ul>${note.exam_findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`
+    : '<span class="placeholder">—</span>';
+  const billingChips = (note.draft_billing_codes || []).length
+    ? `<div class="billing-codes">${note.draft_billing_codes.map((c) => `<span class="billing-chip">${esc(c)}</span>`).join("")}</div>`
+    : '<span class="placeholder">—</span>';
+
+  noteChartEl.innerHTML =
+    section("Chief Complaint", esc(note.chief_complaint) || '<span class="placeholder">—</span>') +
+    section("History of Present Illness", esc(note.history_of_present_illness) || '<span class="placeholder">—</span>') +
+    section("Exam Findings", examList) +
+    section("Assessment", esc(note.assessment) || '<span class="placeholder">—</span>') +
+    section("Plan", esc(note.plan) || '<span class="placeholder">—</span>') +
+    section(
+      "Draft Billing Codes (ICD-10 / CPT)",
+      billingChips + (note.requires_human_review ? '<div class="review-flag">⚠ Requires certified-coder review before submission</div>' : "")
+    );
+
+  const hasContent = Object.values(note).some((v) => (Array.isArray(v) ? v.length : v));
+  attestBtn.disabled = !hasContent;
+  attestBtn.classList.toggle("enabled", hasContent);
+}
+
+attestBtn.addEventListener("click", () => {
+  // This demo has no real EHR behind it -- in production this is where a
+  // FHIR DocumentReference (note) + Condition/Procedure (billing codes)
+  // write-back call would fire against Epic/Cerner/athenahealth, same as
+  // DAX Copilot, Abridge, Suki, Nabla, and Ambience Healthcare do today.
+  draftBadgeEl.textContent = "ATTESTED (demo)";
+  attestNoteEl.textContent =
+    "Simulated: would write back via FHIR (DocumentReference + Condition/Procedure) into the EHR chart for clinician sign-off.";
+  attestBtn.disabled = true;
+  attestBtn.classList.remove("enabled");
+});
+
+function appendFinalSegment(text, ttfsMs, index) {
+  if (transcriptEl.querySelector(".placeholder")) transcriptEl.innerHTML = "";
+  interimSpan = null;
+  const span = document.createElement("span");
+  span.className = "final";
+  span.textContent = (index > 0 ? " " : "") + text;
+  const meta = document.createElement("sup");
+  meta.className = "seg-meta";
+  meta.textContent = ttfsMs !== null ? ` [TTFS ${Math.round(ttfsMs)}ms]` : "";
+  transcriptEl.appendChild(span);
+  transcriptEl.appendChild(meta);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+function showInterim(text) {
+  if (transcriptEl.querySelector(".placeholder")) transcriptEl.innerHTML = "";
+  if (!interimSpan) {
+    interimSpan = document.createElement("span");
+    interimSpan.className = "interim";
+    transcriptEl.appendChild(interimSpan);
+  }
+  interimSpan.textContent = " " + text;
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
+
+async function startDictation() {
+  resetUi();
+  setStatus("connecting…");
+
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws/dictate`);
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => {
+    setStatus("warming up ASR session…");
+    dictateBtn.textContent = "\u25A0 Stop Dictation";
+    dictateBtn.classList.add("recording");
+    recording = true;
+    // Mic capture starts only once the server confirms (via a "ready"
+    // message) that the Together realtime ASR session is actually live --
+    // see server.py for why starting earlier would corrupt TTFS timing.
+  };
+
+  async function beginCapture() {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.audioWorklet.addModule("/static/worklet.js");
+
+    const source = audioCtx.createMediaStreamSource(micStream);
+    workletNode = new AudioWorkletNode(audioCtx, "pcm-downsampler", {
+      processorOptions: { targetRate: 16000 },
+    });
+    workletNode.port.onmessage = (event) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(event.data); // raw Int16 PCM ArrayBuffer
+      }
+    };
+    source.connect(workletNode);
+    // Not connecting workletNode to destination -- we don't want to hear
+    // our own mic echoed back through the speakers.
+    setStatus("listening…");
+  }
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    switch (msg.type) {
+      case "ready":
+        beginCapture().catch((err) => {
+          console.error(err);
+          setStatus(`mic error: ${err.message}`);
+        });
+        break;
+      case "session_started":
+        setStatus(`session live (${msg.model})`);
+        break;
+      case "interim":
+        showInterim(msg.text);
+        break;
+      case "final":
+        appendFinalSegment(msg.text, msg.ttfs_ms, msg.segment_index);
+        lastTtfsEl.textContent = fmtMs(msg.ttfs_ms);
+        segCountEl.textContent = String(msg.segment_index + 1);
+        if (msg.ttfs_summary) {
+          meanTtfsEl.textContent = fmtMs(msg.ttfs_summary.mean_ms);
+          p95TtfsEl.textContent = fmtMs(msg.ttfs_summary.p95_ms);
+        }
+        break;
+      case "note":
+        renderNoteChart(msg.note);
+        lastStructuringEl.textContent = fmtMs(msg.structuring_ms);
+        break;
+      case "summary":
+        if (msg.note) renderNoteChart(msg.note);
+        const t = msg.ttfs_summary;
+        const s = msg.structuring_summary;
+        footerNoteEl.textContent =
+          `Session complete — TTFS: ${t ? `mean ${t.mean_ms}ms / p95 ${t.p95_ms}ms / median ${t.median_ms}ms over ${t.count} segments` : "n/a"}` +
+          `  |  Structuring latency: ${s ? `mean ${s.mean_ms}ms / p95 ${s.p95_ms}ms` : "n/a"}`;
+        break;
+      case "error":
+        setStatus(`error: ${msg.message}`);
+        if (recording) stopDictation(true, `error: ${msg.message}`);
+        break;
+    }
+  };
+
+  ws.onclose = () => {
+    if (recording) stopDictation(/* alreadyClosed */ true);
+  };
+}
+
+function stopDictation(alreadyClosed, finalStatus) {
+  recording = false;
+  dictateBtn.textContent = "\u25CF Start Dictation";
+  dictateBtn.classList.remove("recording");
+  setStatus(finalStatus || "finalizing…");
+
+  if (micStream) {
+    micStream.getTracks().forEach((t) => t.stop());
+    micStream = null;
+  }
+  if (workletNode) {
+    workletNode.disconnect();
+    workletNode = null;
+  }
+  if (audioCtx) {
+    audioCtx.close();
+    audioCtx = null;
+  }
+  if (!alreadyClosed && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "stop" }));
+  }
+  if (!finalStatus) setStatus("idle");
+}
+
+dictateBtn.addEventListener("click", () => {
+  if (!recording) {
+    startDictation().catch((err) => {
+      console.error(err);
+      setStatus(`mic error: ${err.message}`);
+    });
+  } else {
+    stopDictation(false);
+  }
+});
