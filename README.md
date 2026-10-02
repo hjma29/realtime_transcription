@@ -80,6 +80,21 @@ in the repo for reference:
   [structured-outputs sample](https://github.com/togethercomputer/skills/blob/main/skills/together-chat-completions/scripts/structured_outputs.py)
   in `togethercomputer/skills`): `python3 examples/structured_clinical_note.py transcript.txt`
 
+### Measurement
+
+- **`examples/benchmark.py`** — structuring-tier reliability and latency
+  (JSON validity rate, mean/median/p95) over repeated runs.
+- **`examples/measure_ttfs.py`** — ASR-tier time-to-final-segment for a
+  single model.
+- **`examples/benchmark_asr.py`** — ASR accuracy *and* latency in one pass:
+  WER, CER, clinical-critical error rate (CCER), TTFS p50/p95 and RTF across
+  any set of STT models, with `--concurrency` to find where serverless
+  latency degrades. Run `--make-sample` to build a synthetic ground-truth
+  corpus, or `--help-corpus` for how to get real clinical audio.
+  Needs `pip install jiwer` (plus `matplotlib` for `--plot`).
+  Methodology and measured results:
+  [`model-selection-together.md`](model-selection-together.md).
+
 ## Verified
 
 Ran successfully against a real transcribed physician referral letter (NCH
