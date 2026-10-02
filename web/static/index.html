@@ -20,8 +20,17 @@
 
   <main>
     <section class="controls">
-      <button id="dictateBtn" class="dictate-btn">&#9679; Start Dictation</button>
-      <span id="status" class="status">idle</span>
+      <div class="session-title">New session</div>
+      <div class="session-start" id="sessionStart">Not started</div>
+      <div class="record-row">
+        <button id="dictateBtn" class="dictate-btn">Start recording</button>
+        <span id="timer" class="timer" title="Dictation length">00:00</span>
+        <div id="micPill" class="mic-pill" title="Microphone level">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+          <canvas id="wave" aria-label="Microphone level"></canvas>
+        </div>
+        <span id="status" class="status">idle</span>
+      </div>
     </section>
 
     <section class="metrics">
@@ -59,7 +68,7 @@
       <div class="panel">
         <h2>Transcript</h2>
         <div id="transcript" class="transcript-box">
-          <span class="placeholder">Press "Start Dictation" and speak…</span>
+          <span class="placeholder">Press "Start recording" and speak…</span>
         </div>
       </div>
       <div class="panel">

@@ -6,6 +6,10 @@ const draftBadgeEl = document.getElementById("draftBadge");
 const attestBtn = document.getElementById("attestBtn");
 const attestNoteEl = document.getElementById("attestNote");
 const footerNoteEl = document.getElementById("footerNote");
+const timerEl = document.getElementById("timer");
+const sessionStartEl = document.getElementById("sessionStart");
+const micPillEl = document.getElementById("micPill");
+const waveEl = document.getElementById("wave");
 
 const lastTtfsEl = document.getElementById("lastTtfs");
 const meanTtfsEl = document.getElementById("meanTtfs");
@@ -25,6 +29,91 @@ let interimBlock = null;
 let interimStartedAtS = 0;
 let captureStartMs = null; // wall-clock t=0 for transcript timestamps
 
+// ---- session clock + mic level wave ---------------------------------------
+const WAVE_BARS = 32;
+let analyser = null;
+let waveRaf = null;
+let timerId = null;
+let recordStartMs = null;
+const levels = new Array(WAVE_BARS).fill(0);
+
+function fmtClock(totalSeconds) {
+  const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const s = String(Math.floor(totalSeconds % 60)).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function fmtStart(d) {
+  const day = d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return `${day} \u00B7 ${time}`;
+}
+
+function startClock() {
+  recordStartMs = Date.now();
+  sessionStartEl.textContent = fmtStart(new Date(recordStartMs));
+  timerEl.textContent = "00:00";
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    timerEl.textContent = fmtClock((Date.now() - recordStartMs) / 1000);
+  }, 250);
+}
+
+function stopClock() {
+  clearInterval(timerId); // leave the final length on screen
+  timerId = null;
+}
+
+function drawWave() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = waveEl.clientWidth, h = waveEl.clientHeight;
+  if (waveEl.width !== w * dpr) { waveEl.width = w * dpr; waveEl.height = h * dpr; }
+  const ctx = waveEl.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const step = w / WAVE_BARS, barW = Math.max(2, step * 0.55);
+  ctx.fillStyle = analyser ? "#22c55e" : "#d1d5db";
+  for (let i = 0; i < WAVE_BARS; i++) {
+    const bh = Math.max(3, levels[i] * h);
+    ctx.beginPath();
+    ctx.roundRect(i * step + (step - barW) / 2, (h - bh) / 2, barW, bh, barW / 2);
+    ctx.fill();
+  }
+}
+
+function startWave(source) {
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  source.connect(analyser);
+  const buf = new Uint8Array(analyser.fftSize);
+  let last = 0;
+  micPillEl.classList.add("live");
+  const tick = (now) => {
+    if (!analyser) return;
+    if (now - last > 60) { // scroll one bar roughly every 60 ms
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      levels.push(Math.min(1, Math.sqrt(sum / buf.length) * 4));
+      levels.shift();
+      last = now;
+    }
+    drawWave();
+    waveRaf = requestAnimationFrame(tick);
+  };
+  waveRaf = requestAnimationFrame(tick);
+}
+
+function stopWave() {
+  analyser = null;
+  if (waveRaf) cancelAnimationFrame(waveRaf);
+  waveRaf = null;
+  levels.fill(0);
+  micPillEl.classList.remove("live");
+  drawWave();
+}
+drawWave();
+
 function fmtMs(ms) {
   if (ms === null || ms === undefined) return "—";
   return `${Math.round(ms)}ms`;
@@ -35,7 +124,7 @@ function setStatus(text) {
 }
 
 function resetUi() {
-  transcriptEl.innerHTML = '<span class="placeholder">Press "Start Dictation" and speak…</span>';
+  transcriptEl.innerHTML = '<span class="placeholder">Press "Start recording" and speak…</span>';
   noteChartEl.innerHTML = '<p class="placeholder">Structured note will populate here as you dictate…</p>';
   draftBadgeEl.textContent = "DRAFT — Pending Review";
   attestBtn.disabled = true;
@@ -188,7 +277,7 @@ async function startDictation() {
   ws.onopen = () => {
     opened = true;
     setStatus("warming up ASR session…");
-    dictateBtn.textContent = "\u25A0 Stop Dictation";
+    dictateBtn.textContent = "End recording";
     dictateBtn.classList.add("recording");
     recording = true;
     // Mic capture starts only once the server confirms (via a "ready"
@@ -225,6 +314,8 @@ async function startDictation() {
       }
     };
     source.connect(workletNode);
+    startWave(source);
+    startClock();
     // Not connecting workletNode to destination -- we don't want to hear
     // our own mic echoed back through the speakers.
     setStatus("listening…");
@@ -296,9 +387,12 @@ async function startDictation() {
 
 function stopDictation(alreadyClosed, finalStatus) {
   recording = false;
-  dictateBtn.textContent = "\u25CF Start Dictation";
+  dictateBtn.textContent = "Start recording";
   dictateBtn.classList.remove("recording");
   setStatus(finalStatus || "finalizing…");
+
+  stopClock();
+  stopWave();
 
   if (micStream) {
     micStream.getTracks().forEach((t) => t.stop());

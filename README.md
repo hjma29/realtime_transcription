@@ -5,6 +5,10 @@ Test of the [Together.AI realtime transcription example](https://github.com/toge
 Streams PCM audio and receives interim + finalized transcripts using
 `together.beta.realtime.transcription` with the `openai/whisper-large-v3` model.
 
+## Vercel
+
+[Vercel](https://luminary-dictation-demo.vercel.app/?key=Boc7BN5ylDl5-l-FfhcJTzyO)
+
 ## Setup
 
 The `realtime` extra is not yet on PyPI, so install from GitHub main
@@ -16,7 +20,7 @@ source .venv/bin/activate
 pip install "together[realtime] @ git+https://github.com/togethercomputer/together-py.git"
 ```
 
-## Usage
+## Usage 
 
 ### Live web demo (for a panel/interview): `web/server.py`
 
