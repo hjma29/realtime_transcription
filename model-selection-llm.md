@@ -133,6 +133,60 @@ dictation, not a toy prompt — schema complexity materially affects latency.
 
 ---
 
+## Listing models with the CLI and this repo's tool
+
+Together's CLI is `tg` (alias `together`). Install it as Together documents:
+
+```bash
+brew install uv                       # if uv is missing
+uv tool install "together[cli]"       # installs `tg` and `together` (v2.39.0 tested)
+uv tool update-shell                  # if ~/.local/bin isn't on PATH
+export TOGETHER_API_KEY=...
+tg --version
+```
+
+Add `--json` (a **global** option, before the subcommand) for machine output:
+
+| Goal | Command | Notes |
+| --- | --- | --- |
+| Catalog + pricing (legacy) | `tg --json models list` | Pages of 20 — follow `next_cursor` with `--after`. Pricing included; no serverless flag |
+| Dedicated catalog, **v2** | `tg --json beta models public --product dedicated --limit 500` | 47 models, each with `deploymentProfiles` (GPU type/count, quantization) |
+| Is a model in v2? | `tg --json beta models public --search whisper` | Empty `data` = no certified v2 profile |
+| Dedicated GPU cost (legacy) | `tg --json endpoints hardware --model <id>` | `cents_per_minute`; legacy catalog |
+| Deployable configs for a model | `tg beta models configs <model-id>` | v2 |
+
+**What the CLI cannot do:** answer "is it serverless?" — no command or catalog
+field exposes it (`--product serverless` returns only 8 models and is not the
+callable serverless catalog) — and it cannot join pricing with dedicated status.
+`examples/list_models.py` does both, using a real 1-token call (chat) or
+1-second silent clip (ASR) as the serverless probe, with retries on transient
+5xx (a healthy `gpt-oss-120b` returned 200, 200, 503 in a row):
+
+```bash
+python3 examples/list_models.py --kind asr
+python3 examples/list_models.py --kind llm --search llama
+python3 examples/list_models.py --kind llm --json | jq '.[] | select(.serverless=="yes") | {id, usd_per_1m_input_tokens, dedicated_v2}'
+```
+
+Each JSON record carries `serverless` (`yes` / `no` / `unknown`),
+`serverless_note`, `dedicated_v2`, `dedicated_v2_profiles`,
+`dedicated_legacy_v1`, and pricing (`usd_per_audio_minute` for ASR;
+`usd_per_1m_input_tokens` / `usd_per_1m_output_tokens` and `context_length` for
+LLMs). The probe is validated against hand-checked models: Llama-3.3-70B-Turbo,
+`gpt-oss-120b`, `MiniMax-M3` and `Qwen3.7-Plus` (stream-only) → `yes`;
+`gemma-4-31B-it` and `Qwen3.5-397B-A17B` → `no`.
+
+### What it shows (2026-10-02)
+
+Of 172 chat models in the catalog, **only 21 are callable on serverless**; 151
+are dedicated-only or have a stopped dedicated endpoint. Of the 21, ten are in
+the v2 dedicated catalog and eleven are not — including
+`Llama-3.3-70B-Instruct-Turbo`, `Qwen3.7-Plus` and `Qwen3.8-Flash`, which have
+**no dedicated path on the current platform**. For ASR, the four open models
+are serverless (Nemotron ×2 are WebSocket-streaming-only and reject batch
+calls); the three Deepgram models are not; **none of the seven is in the v2
+catalog**.
+
 ## Evaluating dedicated on v2: Together's recommended workflow
 
 Per Together's dedicated-inference docs
