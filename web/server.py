@@ -66,6 +66,96 @@ async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+async def structure_transcript_streaming(
+    client: AsyncTogether, transcript: str, previous_note: rcn.ClinicalNote | None
+) -> tuple[rcn.ClinicalNote, dict]:
+    """Same prompt/schema as rcn.structure_transcript, but streamed so we can
+    report TTFT (time to first token) and TPS (output tokens/sec) -- the two
+    standard LLM-serving latency/throughput numbers, distinct from the
+    end-to-end "structuring_ms" wall-clock figure already tracked.
+    """
+    user_content = transcript
+    if previous_note is not None:
+        user_content = (
+            "Previously extracted note (treat as a sticky baseline — keep "
+            "every field unless the new transcript below clearly "
+            "contradicts or refines it; never drop a confirmed field just "
+            "because the newest sentence is incomplete):\n"
+            f"{json.dumps(previous_note.model_dump())}\n\n"
+            f"Full transcript so far:\n{transcript}"
+        )
+
+    t0 = time.monotonic()
+    ttft_s: float | None = None
+    text_parts: list[str] = []
+    usage = None
+
+    stream = await client.chat.completions.create(
+        model=rcn.STRUCTURING_MODEL,
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a clinical documentation assistant. The following is a "
+                    "raw speech-to-text transcript of a physician dictating a patient "
+                    "visit — possibly incomplete, since the visit may still be in "
+                    "progress. It may contain ASR artifacts (e.g. spoken punctuation "
+                    "like 'full stop' or 'new para' transcribed literally) — normalize "
+                    "those into real punctuation/paragraphs. Extract a structured "
+                    "clinical note matching the given JSON schema from whatever has "
+                    "been said so far. For draft_billing_codes: as soon as you can "
+                    "identify a probable diagnosis or procedure/service from the "
+                    "dictation (even a single symptom or plan item is enough), ALWAYS "
+                    "include your single best-guess code — do not leave this empty "
+                    "just because you are not 100% certain. Format each entry as "
+                    "'ICD-10-CM <code> - <short label>' for diagnoses and 'CPT <code> "
+                    "- <short label>' for procedures/E&M services, e.g. 'ICD-10-CM "
+                    "R51.9 - Headache, unspecified'. These are draft suggestions, not "
+                    "a verified lookup — requires_human_review must always be true "
+                    "regardless of your confidence. If a previously extracted note is "
+                    "provided, update it incrementally rather than re-deriving "
+                    "everything from scratch — keep confirmed fields stable across "
+                    "updates."
+                ),
+            },
+            {"role": "user", "content": user_content},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "clinical_note",
+                "schema": rcn.ClinicalNote.model_json_schema(),
+            },
+        },
+        stream=True,
+    )
+    async for chunk in stream:
+        if ttft_s is None:
+            ttft_s = time.monotonic() - t0
+        if chunk.choices:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                text_parts.append(delta)
+        if getattr(chunk, "usage", None):
+            usage = chunk.usage
+
+    total_s = time.monotonic() - t0
+    note = rcn.ClinicalNote.model_validate_json("".join(text_parts))
+    # Same compliance guardrail as rcn.structure_transcript.
+    note.requires_human_review = True
+
+    completion_tokens = getattr(usage, "completion_tokens", None)
+    gen_s = max(total_s - (ttft_s or 0), 1e-6)  # time spent generating, excl. TTFT
+    metrics = {
+        "ttft_ms": round(ttft_s * 1000, 1) if ttft_s is not None else None,
+        "total_ms": round(total_s * 1000, 1),
+        "completion_tokens": completion_tokens,
+        "tps": round(completion_tokens / gen_s, 1) if completion_tokens else None,
+    }
+    return note, metrics
+
+
 def _summarize(values: list[float]) -> dict | None:
     if not values:
         return None
@@ -91,6 +181,8 @@ async def ws_dictate(ws: WebSocket) -> None:
     finalized: list[str] = []
     ttfs_values: list[float] = []
     structuring_latencies: list[float] = []
+    ttft_values_ms: list[float] = []
+    tps_values: list[float] = []
     segments: list[dict] = []  # per-utterance log entries for the notebook
     latest_note: rcn.ClinicalNote | None = None
     structuring_lock = asyncio.Lock()
@@ -114,17 +206,22 @@ async def ws_dictate(ws: WebSocket) -> None:
                 pending_rerun = False
                 text = " ".join(finalized)
                 t0 = time.monotonic()
-                note = await loop.run_in_executor(
-                    None, rcn.structure_transcript, text, latest_note
+                note, llm_metrics = await structure_transcript_streaming(
+                    client, text, latest_note
                 )
                 structuring_ms = (time.monotonic() - t0) * 1000
                 structuring_latencies.append(structuring_ms / 1000)
+                if llm_metrics.get("ttft_ms") is not None:
+                    ttft_values_ms.append(llm_metrics["ttft_ms"])
+                if llm_metrics.get("tps") is not None:
+                    tps_values.append(llm_metrics["tps"])
                 latest_note = note
                 await send_json(
                     {
                         "type": "note",
                         "note": note.model_dump(),
                         "structuring_ms": round(structuring_ms, 1),
+                        "llm_metrics": llm_metrics,
                     }
                 )
                 if not pending_rerun:
@@ -239,19 +336,30 @@ async def ws_dictate(ws: WebSocket) -> None:
         if finalized:
             t0 = time.monotonic()
             try:
-                latest_note = await loop.run_in_executor(
-                    None, rcn.structure_transcript, " ".join(finalized), latest_note
+                latest_note, llm_metrics = await structure_transcript_streaming(
+                    client, " ".join(finalized), latest_note
                 )
                 structuring_latencies.append(time.monotonic() - t0)
+                if llm_metrics.get("ttft_ms") is not None:
+                    ttft_values_ms.append(llm_metrics["ttft_ms"])
+                if llm_metrics.get("tps") is not None:
+                    tps_values.append(llm_metrics["tps"])
             except Exception:  # noqa: BLE001 - keep whatever note we already had
                 pass
 
+        llm_summary = {
+            "ttft_ms_mean": round(statistics.mean(ttft_values_ms), 1) if ttft_values_ms else None,
+            "ttft_ms_last": round(ttft_values_ms[-1], 1) if ttft_values_ms else None,
+            "tps_mean": round(statistics.mean(tps_values), 1) if tps_values else None,
+            "tps_last": round(tps_values[-1], 1) if tps_values else None,
+        }
         summary = {
             "type": "summary",
             "transcript": transcript,
             "note": latest_note.model_dump() if latest_note else None,
             "ttfs_summary": _summarize(ttfs_values),
             "structuring_summary": _summarize(structuring_latencies),
+            "llm_summary": llm_summary,
         }
         await send_json(summary)
 
@@ -267,6 +375,8 @@ async def ws_dictate(ws: WebSocket) -> None:
                     "segments": segments,
                     "ttfs_values_s": ttfs_values,
                     "structuring_latencies_s": structuring_latencies,
+                    "ttft_values_ms": ttft_values_ms,
+                    "tps_values": tps_values,
                 },
                 indent=2,
             )

@@ -42,6 +42,14 @@
         <div class="metric-label">Last structuring</div>
         <div id="lastStructuring" class="metric-value">&mdash;</div>
       </div>
+      <div class="metric-card">
+        <div class="metric-label">LLM TTFT</div>
+        <div id="lastTtft" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">LLM TPS</div>
+        <div id="lastTps" class="metric-value">&mdash;</div>
+      </div>
     </section>
 
     <section class="panels">
@@ -63,11 +71,18 @@
       </div>
     </section>
 
+    <section class="panels">
+      <div class="panel panel-wide">
+        <h2>Source JSON <span class="panel-subtitle">raw structured output from the LLM</span></h2>
+        <pre id="sourceJson" class="json-box"><code>{}</code></pre>
+      </div>
+    </section>
+
     <section class="pattern-note">
       Modeled on the ambient-scribe write-back pattern used by Nuance DAX /
       Microsoft Dragon Copilot, Abridge, Suki AI, Nabla, and Ambience
       Healthcare: streaming ASR &rarr; LLM-structured SOAP note + draft
-      ICD-10/CPT codes &rarr; mandatory clinician review &rarr; FHIR
+      ICD-10-CM/CPT codes &rarr; mandatory clinician review &rarr; FHIR
       write-back into the EHR chart (DocumentReference / Condition /
       Procedure resources) — never auto-submitted without sign-off.
     </section>

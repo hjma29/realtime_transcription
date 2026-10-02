@@ -144,6 +144,35 @@ main {
   gap: 10px;
 }
 
+.panel-wide {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.panel-subtitle {
+  text-transform: none;
+  font-weight: 400;
+  color: var(--dim);
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  margin-left: 10px;
+}
+
+.json-box {
+  background: #0a0e14;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #9ecbff;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .draft-badge {
   background: rgba(251, 191, 36, 0.12);
   color: #fbbf24;

@@ -12,6 +12,9 @@ const meanTtfsEl = document.getElementById("meanTtfs");
 const p95TtfsEl = document.getElementById("p95Ttfs");
 const segCountEl = document.getElementById("segCount");
 const lastStructuringEl = document.getElementById("lastStructuring");
+const lastTtftEl = document.getElementById("lastTtft");
+const lastTpsEl = document.getElementById("lastTps");
+const sourceJsonEl = document.getElementById("sourceJson");
 
 let audioCtx = null;
 let micStream = null;
@@ -42,6 +45,9 @@ function resetUi() {
   p95TtfsEl.textContent = "—";
   segCountEl.textContent = "0";
   lastStructuringEl.textContent = "—";
+  lastTtftEl.textContent = "—";
+  lastTpsEl.textContent = "—";
+  sourceJsonEl.textContent = "{}";
 }
 
 // Renders the structured note the way real ambient-scribe products (DAX
@@ -69,13 +75,17 @@ function renderNoteChart(note) {
     section("Assessment", esc(note.assessment) || '<span class="placeholder">—</span>') +
     section("Plan", esc(note.plan) || '<span class="placeholder">—</span>') +
     section(
-      "Draft Billing Codes (ICD-10 / CPT)",
+      "Draft Billing Codes (ICD-10-CM / CPT)",
       billingChips + (note.requires_human_review ? '<div class="review-flag">⚠ Requires certified-coder review before submission</div>' : "")
     );
 
   const hasContent = Object.values(note).some((v) => (Array.isArray(v) ? v.length : v));
   attestBtn.disabled = !hasContent;
   attestBtn.classList.toggle("enabled", hasContent);
+}
+
+function renderSourceJson(note) {
+  sourceJsonEl.textContent = JSON.stringify(note ?? {}, null, 2);
 }
 
 attestBtn.addEventListener("click", () => {
@@ -90,17 +100,16 @@ attestBtn.addEventListener("click", () => {
   attestBtn.classList.remove("enabled");
 });
 
-function appendFinalSegment(text, ttfsMs, index) {
+function appendFinalSegment(text, index) {
   if (transcriptEl.querySelector(".placeholder")) transcriptEl.innerHTML = "";
-  interimSpan = null;
+  if (interimSpan) {
+    interimSpan.remove(); // drop the in-progress (gray) span -- the final
+    interimSpan = null;   // text below fully replaces it, don't leave both.
+  }
   const span = document.createElement("span");
   span.className = "final";
   span.textContent = (index > 0 ? " " : "") + text;
-  const meta = document.createElement("sup");
-  meta.className = "seg-meta";
-  meta.textContent = ttfsMs !== null ? ` [TTFS ${Math.round(ttfsMs)}ms]` : "";
   transcriptEl.appendChild(span);
-  transcriptEl.appendChild(meta);
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
 }
 
@@ -177,7 +186,7 @@ async function startDictation() {
         showInterim(msg.text);
         break;
       case "final":
-        appendFinalSegment(msg.text, msg.ttfs_ms, msg.segment_index);
+        appendFinalSegment(msg.text, msg.segment_index);
         lastTtfsEl.textContent = fmtMs(msg.ttfs_ms);
         segCountEl.textContent = String(msg.segment_index + 1);
         if (msg.ttfs_summary) {
@@ -187,15 +196,27 @@ async function startDictation() {
         break;
       case "note":
         renderNoteChart(msg.note);
+        renderSourceJson(msg.note);
         lastStructuringEl.textContent = fmtMs(msg.structuring_ms);
+        if (msg.llm_metrics) {
+          lastTtftEl.textContent = fmtMs(msg.llm_metrics.ttft_ms);
+          lastTpsEl.textContent =
+            msg.llm_metrics.tps != null ? `${msg.llm_metrics.tps} tok/s` : "—";
+        }
         break;
       case "summary":
-        if (msg.note) renderNoteChart(msg.note);
+        if (msg.note) {
+          renderNoteChart(msg.note);
+          renderSourceJson(msg.note);
+        }
         const t = msg.ttfs_summary;
         const s = msg.structuring_summary;
+        const l = msg.llm_summary;
         footerNoteEl.textContent =
           `Session complete — TTFS: ${t ? `mean ${t.mean_ms}ms / p95 ${t.p95_ms}ms / median ${t.median_ms}ms over ${t.count} segments` : "n/a"}` +
-          `  |  Structuring latency: ${s ? `mean ${s.mean_ms}ms / p95 ${s.p95_ms}ms` : "n/a"}`;
+          `  |  Structuring latency: ${s ? `mean ${s.mean_ms}ms / p95 ${s.p95_ms}ms` : "n/a"}` +
+          `  |  LLM TTFT: ${l && l.ttft_ms_mean != null ? `mean ${l.ttft_ms_mean}ms` : "n/a"}` +
+          `  |  LLM TPS: ${l && l.tps_mean != null ? `mean ${l.tps_mean} tok/s` : "n/a"}`;
         break;
       case "error":
         setStatus(`error: ${msg.message}`);

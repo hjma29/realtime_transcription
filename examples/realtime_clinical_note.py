@@ -53,8 +53,10 @@ class ClinicalNote(BaseModel):
     assessment: str = Field(description="Clinical assessment / likely diagnosis")
     plan: str = Field(description="Treatment plan / next steps")
     draft_billing_codes: list[str] = Field(
-        description="Candidate ICD-10/CPT codes. DRAFT ONLY — must be "
-        "verified by a certified coder before submission."
+        description="Candidate ICD-10-CM (diagnosis) / CPT (procedure, E&M) "
+        "codes, formatted as 'ICD-10-CM <code> - <label>' or 'CPT <code> - "
+        "<label>'. Best-guess suggestions, not a lookup — DRAFT ONLY, must "
+        "be verified by a certified coder before submission."
     )
     requires_human_review: bool = Field(
         default=True,
@@ -103,11 +105,19 @@ def structure_transcript(
                     "like 'full stop' or 'new para' transcribed literally) — normalize "
                     "those into real punctuation/paragraphs. Extract a structured "
                     "clinical note matching the given JSON schema from whatever has "
-                    "been said so far. Billing codes are drafts only; never fabricate "
-                    "a code you are not reasonably confident about. If a previously "
-                    "extracted note is provided, update it incrementally rather than "
-                    "re-deriving everything from scratch — keep confirmed fields "
-                    "stable across updates."
+                    "been said so far. For draft_billing_codes: as soon as you can "
+                    "identify a probable diagnosis or procedure/service from the "
+                    "dictation (even a single symptom or plan item is enough), ALWAYS "
+                    "include your single best-guess code — do not leave this empty "
+                    "just because you are not 100% certain. Format each entry as "
+                    "'ICD-10-CM <code> - <short label>' for diagnoses and 'CPT <code> "
+                    "- <short label>' for procedures/E&M services, e.g. 'ICD-10-CM "
+                    "R51.9 - Headache, unspecified'. These are draft suggestions, not "
+                    "a verified lookup — requires_human_review must always be true "
+                    "regardless of your confidence. If a previously extracted note is "
+                    "provided, update it incrementally rather than re-deriving "
+                    "everything from scratch — keep confirmed fields stable across "
+                    "updates."
                 ),
             },
             {"role": "user", "content": user_content},
