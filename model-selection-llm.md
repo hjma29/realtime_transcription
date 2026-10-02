@@ -1,16 +1,20 @@
-# Model Selection — Together AI
+# Model Selection — LLM (structuring tier)
 
-Decision record for the two model slots in this pipeline, and the evidence
-behind them. Last verified **2026-10-02** against the live Together API.
+Decision record for the **structuring** model slot — the LLM that turns a raw
+transcript into a schema-constrained clinical note with draft billing codes —
+and the evidence behind it. Last verified **2026-10-02** against the live
+Together API.
 
+The speech-to-text slot is covered separately in
+[`model-selection-asr.md`](model-selection-asr.md). The two tiers are chosen
+on different criteria: this one on latency alone (JSON validity is binary),
+the ASR tier on a genuine accuracy-vs-latency trade-off.
 
-| Slot        | Model ID                                  | Status                                           |
-| ----------- | ----------------------------------------- | ------------------------------------------------ |
-| ASR         | `openai/whisper-large-v3`                | **Current.** Streaming, finalized-segment output |
-| Structuring | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | **Current.** Sync JSON schema, ~2.3s             |
+| Slot        | Model ID                                  | Status                               |
+| ----------- | ----------------------------------------- | ------------------------------------ |
+| Structuring | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | **Current.** Sync JSON schema, ~2.3s |
 
-Both are defined in `examples/realtime_clinical_note.py` (`ASR_MODEL`,
-`STRUCTURING_MODEL`).
+Defined as `STRUCTURING_MODEL` in `examples/realtime_clinical_note.py`.
 
 ---
 
@@ -51,10 +55,10 @@ Worth stating plainly, because it changes how hard to hold each line:
   path is currently written. A streaming-only model is a rewrite, not an
   impossibility — but it buys nothing unless the model is also fast.
 
-### The strongest case for availability on *both* tiers
+### The strongest case for availability in *both* serving modes
 
-Not migration mechanics — **hybrid serving**. Identical weights on both tiers
-let you reserve dedicated capacity for steady-state load and spill over to
+Not migration mechanics — **hybrid serving**. Identical weights in both
+serverless and dedicated let you reserve dedicated capacity for steady-state load and spill over to
 serverless at peaks, instead of over-provisioning GPUs for the worst hour of
 the day. For a clinic with a sharp daily demand curve, that is a better cost
 story than a one-time migration, and it only works if the same model ID runs
@@ -125,143 +129,6 @@ dictation, not a toy prompt — schema complexity materially affects latency.
 
 ---
 
-## Testing the ASR tier: WER vs. latency
-
-The structuring tier is chosen on latency alone, because JSON validity is
-binary. The ASR tier is a genuine **two-axis trade-off** — a faster model
-that mishears a dosage is worse than a slower one that doesn't — so it needs
-a different harness: `examples/benchmark_asr.py`.
-
-It measures accuracy and latency **in the same pass over the same audio**,
-which matters because a WER number sourced from one run and a latency number
-from another are not a trade-off curve, just two unrelated facts.
-
-```bash
-# 1. build a synthetic corpus with exact ground truth (macOS `say`)
-python3 examples/benchmark_asr.py --make-sample corpus/
-
-# 2. sweep every streaming STT model in the catalog
-python3 examples/benchmark_asr.py --manifest corpus/manifest.jsonl \
-    --all --plot asr_tradeoff.png
-
-# 3. find where serverless degrades under load
-python3 examples/benchmark_asr.py --manifest corpus/manifest.jsonl \
-    --models openai/whisper-large-v3 --concurrency 10
-```
-
-### What it measures, and why each one
-
-| Metric | Definition | Why it's there |
-| --- | --- | --- |
-| **WER** | Word error rate on *normalized* text | The headline accuracy number |
-| **raw WER** | Same, unnormalized | The gap vs. WER is pure formatting — see below |
-| **CER** | Character error rate | Catches near-misses WER rounds to a full error |
-| **CCER** | Error rate over **clinically load-bearing tokens only** | The number that actually predicts patient harm |
-| **TTFS p50 / p95** | Lag from end of spoken segment to finalized transcript | Perceived responsiveness. p95 is the one users feel |
-| **RTF** | Wall time ÷ audio duration | Must stay ≈1.0 or the stream falls behind live speech |
-
-### Normalize before scoring, or you measure formatting
-
-ASR output has no agreed casing or punctuation and renders numbers
-inconsistently. Measured on Whisper over the sample corpus:
-
-| | WER |
-| --- | --- |
-| Raw, unnormalized | **13.2%** |
-| Normalized | **2.4%** |
-
-Over 80% of the apparent error was `148` vs. `one hundred forty-eight`,
-trailing periods, and capitalization. The harness normalizes both sides
-identically (casing, punctuation, contractions, spoken-punctuation
-artifacts, and spelled-out numbers → digits) and reports raw alongside so
-the gap stays visible rather than hidden.
-
-### Why plain WER is the wrong safety metric
-
-WER weights every token equally. Measured on one reference sentence, with a
-single token changed each time:
-
-| Mutation | WER | CCER |
-| --- | --- | --- |
-| inserted filler word "the" | 7.7% | **0.0%** |
-| `hypertension` → `hypotension` | 7.7% | **14.3%** |
-| aspirin `81 mg` → `8 mg` | 7.7% | **14.3%** |
-| `denies` chest pain → `reports` | 7.7% | **14.3%** |
-| `right` knee → `left` knee | 7.7% | **14.3%** |
-
-**Every row scores identically on WER.** One is harmless; four are a
-clinically inverted finding, a 10x dose error, a negation flip, and
-wrong-site laterality. CCER restricts scoring to dosages, numbers,
-laterality, negation and high-risk drug/condition terms (`CRITICAL_TERMS` in
-the script — deliberately a small auditable list, not a drug database).
-
-Report both. WER is comparable to the published literature; CCER is the one
-to gate a clinical release on.
-
-### Measured results (synthetic corpus, 2026-10-02)
-
-Three TTS clinical dictations, streamed at true real-time pace, single
-concurrency:
-
-| Model | WER | CCER | TTFS p50 | TTFS p95 |
-| --- | --- | --- | --- | --- |
-| `openai/whisper-large-v3` | **2.4%** | 3.7% | −28ms | 239ms |
-| `nvidia/parakeet-tdt-0.6b-v3` | 2.9% | 3.7% | −46ms | 237ms |
-| `nvidia/nemotron-3-asr-streaming-0.6b` | 3.5% | **1.9%** | −5ms | **115ms** |
-| `nvidia/nemotron-3.5-asr-streaming-0.6b` | 7.1% | 3.7% | −13ms | 231ms |
-| `deepgram/flux`, `nova-3-en`, `nova-3-multi` | — | — | — | dedicated-only |
-
-Negative p50 is expected, not a bug: finalization can arrive *before* the
-segment's `audio_end` offset elapses in wall-clock, because the sender is
-pacing ahead of the model's emit point.
-
-Two things worth noting:
-
-- **The three Deepgram STT models are dedicated-only.** They are in the
-  catalog but refuse serverless calls. The realtime endpoint reports this as
-  a bare HTTP 404 with a misleading "check your base_url" message; the
-  harness re-probes the batch endpoint to surface the real reason. Benchmarking
-  them means standing up an endpoint first.
-- **`nemotron-3` beats `whisper-large-v3` on CCER and p95 while losing on
-  WER.** Exactly the inversion that makes a single-metric comparison
-  dangerous — and worth a re-test on real audio before acting on it.
-
-### The caveat that governs all of the above
-
-These numbers come from **TTS audio**, which has no disfluency, accent,
-crosstalk, room noise or mic variation. They validate the harness and give a
-rough relative ranking. They are **not** a defensible absolute WER, and the
-ranking can invert on real speech.
-
-For numbers worth quoting, run the same harness against:
-
-1. **PriMock57** — open, 57 mock primary-care consultations with human
-   transcripts (Babylon Health). The closest open proxy to clinical dictation.
-2. **Your own de-identified recordings** — the only corpus reflecting your
-   actual mics, accents and specialties, and so the only one whose WER
-   predicts production. Needs PHI scrubbing and BAA/IRB review first.
-
-`--help-corpus` repeats this guidance in the tool.
-
-### Accuracy is concurrency-independent; latency is not
-
-WER is a property of the model and the audio. Latency is a property of the
-*deployment*. Measured on Whisper over the same corpus:
-
-| Concurrency | TTFS p95 |
-| --- | --- |
-| 1 | 139ms |
-| 5 | 238ms |
-
-This is the measurement that justifies — or doesn't justify — a dedicated
-endpoint. A single-concurrency chart (including the vendor charts that
-carry that caveat in small print) says nothing about behavior at the
-clinic's 9am peak. Sweep `--concurrency` until p95 breaches your budget;
-that number is the capacity trigger, and it is far more persuasive in a
-customer conversation than a list price comparison.
-
----
-
 ## Evaluated and rejected
 
 ### Gemma-4 / Qwen-3.5+ shortlist (2026-10-02)
@@ -315,26 +182,22 @@ latency first — in that order.
 
 ## Dedicated endpoint readiness
 
-Both tiers can move to dedicated. Re-verified 2026-10-02 via `/v1/hardware`:
+Re-verified 2026-10-02 via `/v1/hardware`:
 
 
-| Tier | Model                                      | Dedicated configurations  |
-| ---- | ------------------------------------------ | ------------------------- |
-| ASR  | `openai/whisper-large-v3`                  | `1x_nvidia_h100_80gb_sxm` |
-| LLM  | `meta-llama/Llama-3.3-70B-Instruct-Turbo`  | 2x / 4x / 8x H100         |
-| LLM  | `meta-llama/Llama-3.3-70B-Instruct` (BF16) | 4x / 8x H100              |
+| Model                                      | Dedicated configurations |
+| ------------------------------------------ | ------------------------ |
+| `meta-llama/Llama-3.3-70B-Instruct-Turbo`  | 2x / 4x / 8x H100        |
+| `meta-llama/Llama-3.3-70B-Instruct` (BF16) | 4x / 8x H100             |
 
-Two consequences worth stating explicitly, because both were previously
-documented incorrectly in `agent-handover.md`:
+**Going dedicated is a deployment change, not a model swap.** The Turbo ID
+deploys dedicated as-is, and because it is FP8 it reserves at *half* the GPU
+footprint of the BF16 variant. Migration is a `base_url` change with the same
+model ID. (An earlier version of `agent-handover.md` claimed a swap to the
+BF16 ID was required; that was wrong.)
 
-- **The entire STT catalog is dedicated-capable at 1x H100** — Whisper,
-  Parakeet, Nemotron-ASR, Deepgram Flux, Nova-3. There is no STT dedicated
-  gap. If a BAA forces dedicated deployment, the audio tier is the cheap
-  half of that bill.
-- **Going dedicated on the LLM tier is a deployment change, not a model
-  swap.** The Turbo ID deploys dedicated as-is, and because it is FP8 it
-  reserves at *half* the GPU footprint of the BF16 variant. Migration is a
-  `base_url` change with the same model ID.
+For the audio tier's dedicated story, see
+[`model-selection-asr.md`](model-selection-asr.md#dedicated-endpoint-readiness).
 
 ---
 
@@ -356,3 +219,6 @@ they take minutes and latency benchmarking takes real time and tokens.
 Revisit `MiniMax-M3` after a clean re-test — it is the only model measured so
 far that was *faster* than the incumbent. Treat `gpt-oss-120b` and the
 Gemma-4/Qwen-3.5+ shortlist as closed.
+
+For the speech-to-text recommendation, see
+[`model-selection-asr.md`](model-selection-asr.md).

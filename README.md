@@ -61,10 +61,10 @@ before submission.
 
 See [`DEMO.md`](DEMO.md) for the exact commands to run in front of an
 audience, [`ARCHITECTURE.md`](ARCHITECTURE.md) for the pipeline/design
-diagrams, and
-[`model-selection-together.md`](model-selection-together.md) for why these
-two models were chosen, what was rejected, and how to verify a new
-candidate.
+diagrams, and the model-selection records —
+[`model-selection-asr.md`](model-selection-asr.md) (speech-to-text) and
+[`model-selection-llm.md`](model-selection-llm.md) (structuring) — for why
+each model was chosen, what was rejected, and how to verify a new candidate.
 
 ### Individual pieces (for reference / experimentation)
 
@@ -93,7 +93,7 @@ in the repo for reference:
   corpus, or `--help-corpus` for how to get real clinical audio.
   Needs `pip install jiwer` (plus `matplotlib` for `--plot`).
   Methodology and measured results:
-  [`model-selection-together.md`](model-selection-together.md).
+  [`model-selection-asr.md`](model-selection-asr.md).
 
 ## Verified
 

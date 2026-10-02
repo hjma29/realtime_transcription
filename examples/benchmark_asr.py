@@ -398,8 +398,9 @@ async def main() -> None:
     ap.add_argument("--plot", type=Path, help="write WER-vs-latency scatter PNG")
     ap.add_argument("--concurrency", type=int, default=1, metavar="N",
                     help="run N simultaneous streams per model (default 1). "
-                         "Accuracy is concurrency-independent; latency is not — "
-                         "raise this to find where serverless degrades.")
+                         "Raise it to see tail latency under load. Single-run "
+                         "p95 is noisy (~100ms spread at N=1): repeat each "
+                         "setting several times before drawing conclusions.")
     args = ap.parse_args()
 
     if args.help_corpus:
