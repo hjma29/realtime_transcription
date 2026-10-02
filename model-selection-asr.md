@@ -20,20 +20,24 @@ Defined as `ASR_MODEL` in `examples/realtime_clinical_note.py`.
 
 ## Candidates in the Together catalog
 
-Seven models have `type: transcribe`. Status verified live 2026-10-02:
+Seven models have `type: transcribe`. Serverless status verified live
+2026-10-02. The dedicated column comes from the **legacy v1 catalog only** — the
+current v2 catalog lists none of them; see
+[Dedicated endpoint readiness](#dedicated-endpoint-readiness).
 
-| Model                                    | Serverless streaming | Dedicated config          |
-| ---------------------------------------- | -------------------- | ------------------------- |
-| `openai/whisper-large-v3`                | ✅                   | `1x_nvidia_h100_80gb_sxm` |
-| `nvidia/parakeet-tdt-0.6b-v3`            | ✅                   | `1x_nvidia_h100_80gb_sxm` |
-| `nvidia/nemotron-3-asr-streaming-0.6b`   | ✅                   | `1x_nvidia_h100_80gb_sxm` |
-| `nvidia/nemotron-3.5-asr-streaming-0.6b` | ✅                   | `1x_nvidia_h100_80gb_sxm` |
-| `deepgram/flux`                          | ❌ dedicated-only    | `1x_nvidia_h100_80gb_sxm` |
-| `deepgram/nova-3-en`                     | ❌ dedicated-only    | `1x_nvidia_h100_80gb_sxm` |
-| `deepgram/nova-3-multi`                  | ❌ dedicated-only    | `1x_nvidia_h100_80gb_sxm` |
+| Model                                    | Serverless streaming | Dedicated (legacy v1 catalog) | In v2 catalog |
+| ---------------------------------------- | -------------------- | ----------------------------- | ------------- |
+| `openai/whisper-large-v3`                | ✅                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `nvidia/parakeet-tdt-0.6b-v3`            | ✅                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `nvidia/nemotron-3-asr-streaming-0.6b`   | ✅                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `nvidia/nemotron-3.5-asr-streaming-0.6b` | ✅                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `deepgram/flux`                          | ❌                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `deepgram/nova-3-en`                     | ❌                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
+| `deepgram/nova-3-multi`                  | ❌                   | `1x_nvidia_h100_80gb_sxm`     | ❌            |
 
-The three Deepgram models can't be benchmarked without first standing up an
-endpoint, so they are absent from the measured results below.
+The three Deepgram models refuse serverless calls, and if the v2 catalog is the
+whole story they are not deployable at all. Either way they can't be
+benchmarked, so they are absent from the measured results below.
 
 ---
 
@@ -47,10 +51,11 @@ Because the four models cost the same, price does not separate them — the
 choice is accuracy and latency.
 
 **Dedicated: $0.09 per minute of GPU time ($5.40/hour) for one H100**, from
-`GET /v1/hardware` (`cents_per_minute: 9`). It is billed while the endpoint
+`GET /v1/hardware` (`cents_per_minute: 9`). **This is the legacy v1 catalog**,
+and the v2 catalog lists no STT models, so treat the figure as indicative of
+H100 pricing, not as a confirmed STT price. It is billed while the endpoint
 runs, whether or not it is busy. Cross-checked for linear scaling against the
-Llama configs (2x = 18, 4x = 36, 8x = 72). The three Deepgram models have no
-serverless price; dedicated is their only option, at the same GPU rate.
+Llama configs (2x = 18, 4x = 36, 8x = 72).
 
 ### Break-even
 
@@ -80,27 +85,90 @@ Caveats on that arithmetic:
 
 ---
 
+## Which base URL to use
+
+**Use `https://api.together.ai/v1`.** It is the SDK default, the base URL in
+Together's API examples, and the one every command in this repo uses. Tested
+2026-10-02 with the same serverless Whisper and chat calls:
+
+| Base URL                                | Chat | Transcription | `GET /models`     |
+| --------------------------------------- | ---- | ------------- | ----------------- |
+| `https://api.together.ai/v1`            | 200  | 200           | 200 (264 models)  |
+| `https://api.together.xyz/v1`           | 200  | 200           | 200 (264 models)  |
+| `https://api-inference.together.ai/v1`  | 200  | 200           | **404**           |
+| `https://api-inference.together.ai/v2`  | **404** | **404**    | **404**           |
+
+What the table means:
+
+- **`api.together.xyz` is an older domain** that still works identically. New
+  code should use `.ai`.
+- **`api-inference.together.ai` is an inference-only host** (no model listing).
+  Together's dedicated-endpoints quickstart tells customers to point at it with
+  `/v1`, while the general "shared inference API" page sends dedicated traffic
+  to `api.together.ai/v1`. Both work for inference; the docs simply disagree.
+- **`https://api-inference.together.ai/v2` returned 404 on every call tried.**
+  The OpenAPI spec lists it ("Optimized environment for inference") as a
+  second server on 153 of 168 reference pages, so it is a spec-wide
+  declaration rather than something specific to audio — and as of this date it
+  does not serve requests. Do not build on it. This is the `/v2` shown in the
+  docs' server dropdown on the transcription page.
+
+Three different things are called "v2" in Together's docs, which is the
+likely source of confusion:
+
+1. **Dedicated endpoints v2** (launched **July 16, 2026**) — a new resource
+   model (endpoint / deployment / config / traffic split) with its own
+   control-plane API at **`https://api.together.ai/v2`** (this one is real:
+   `GET /v2/supported-models` returns 200). Creating new v1 dedicated
+   endpoints, or restarting stopped ones, is disabled
+   (`endpoints_v1_create_access_disabled`, HTTP 403); the docs give no date for
+   the cutoff. The *inference* API is unchanged: same `/v1/...` request paths.
+2. **Python SDK v2** (GA **February 4, 2026**; release candidate December 12,
+   2025) — the `pip install together` client this repo uses.
+3. **The `api-inference…/v2` server URL** above — declared, not working.
+
+**What a customer should use:** `https://api.together.ai/v1` for all inference
+calls (serverless or dedicated); the **v2** dedicated-endpoints API/CLI to
+create and manage dedicated deployments; and the current Python SDK.
+
+---
+
 ## How to verify a candidate (reproducible)
 
 ### 1. Does it exist, and what is the exact ID?
 
 ```bash
 curl -s -H "Authorization: Bearer $TOGETHER_API_KEY" \
-  https://api.together.xyz/v1/models \
+  https://api.together.ai/v1/models \
   | python3 -c "import json,sys;[print(m['id']) for m in json.load(sys.stdin) if m.get('type')=='transcribe']"
 ```
 
 ### 2. Is it dedicated-capable?
 
+**Ask the v2 catalog first.** New dedicated endpoints can only be created on
+dedicated model inference v2, so this is the check that matters:
+
 ```bash
 curl -s -G -H "Authorization: Bearer $TOGETHER_API_KEY" \
-  --data-urlencode "model=<id>" https://api.together.xyz/v1/hardware
+  --data-urlencode "search=<name>" https://api.together.ai/v2/supported-models
+# empty "data" array => no certified v2 deployment profile
+```
+
+Each hit carries `deploymentProfiles` (GPU type/count, quantization). The list is
+small (48 models on 2026-10-02) and unpaginated at that size.
+
+The legacy check below still answers, but reflects the pre-v2 catalog and
+**disagreed with v2 for every STT model** — don't rely on it alone:
+
+```bash
+curl -s -G -H "Authorization: Bearer $TOGETHER_API_KEY" \
+  --data-urlencode "model=<id>" https://api.together.ai/v1/hardware
 ```
 
 Returns GPU configurations, or `No GPU configurations found for model` if there
-is no dedicated path. `GET /v1/models` carries **no** dedicated flag, so this is
-the only way to answer the question. Control-tested: bogus IDs return the error,
-so a non-empty result is meaningful.
+is no legacy dedicated path. `GET /v1/models` carries no dedicated flag.
+Control-tested: bogus IDs return the error, so a non-empty result is meaningful
+— but meaningful about the *legacy* catalog.
 
 ### 3. Is it serverless?
 
@@ -112,7 +180,7 @@ TOGETHER_BASE_URL points at an API" — sending you to debug the wrong thing.
 Ask the batch endpoint instead; it returns the real reason:
 
 ```bash
-curl -s -X POST https://api.together.xyz/v1/audio/transcriptions \
+curl -s -X POST https://api.together.ai/v1/audio/transcriptions \
   -H "Authorization: Bearer $TOGETHER_API_KEY" \
   -F "file=@clip.wav" -F "model=<id>"
 # 400 — "Unable to access non-serverless model <id>. Please visit ...
@@ -301,61 +369,78 @@ number — not a list-price comparison — is what justifies reserved capacity.
 
 ## Dedicated endpoint readiness
 
-All seven STT models deploy dedicated on a single GPU
-(`1x_nvidia_h100_80gb_sxm`). There is no dedicated gap on the audio tier. (An
-earlier version of `agent-handover.md` claimed there was; that was wrong.)
+**Status: unresolved — two Together catalogs disagree, and the one that governs
+new deployments says no.**
 
-Three independent sources agree:
+Since dedicated endpoints v2 launched (July 16, 2026), new dedicated
+deployments must be created on v2; v1 creation is disabled. So the question is
+what the *v2* catalog contains.
 
-1. `GET /v1/hardware?model=<id>` returns a `1x_nvidia_h100_80gb_sxm` config for
-   all seven, with `availability.status: available`.
-2. `GET /v1/models?dedicated=true` lists all seven `transcribe` models in the
-   dedicated catalog.
-3. Together's own [speech-to-text docs](https://docs.together.ai/docs/speech-to-text)
-   publish a Serverless / Dedicated table: Whisper, Parakeet, Nemotron-3 and
-   Nemotron-3.5 are ✅ on both; the three Deepgram models are ❌ serverless,
-   ✅ dedicated.
+| Source                                                              | Whisper / Parakeet / Nemotron / Deepgram on dedicated?        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `GET api.together.ai/v2/supported-models` (current, 48 models)      | **Absent.** Only two `audio` entries, both TTS (Kokoro, Qwen3-TTS). `search=whisper` and `search=parakeet` return 0 |
+| `GET /v1/hardware?model=<id>` (legacy)                              | ✅ `1x_nvidia_h100_80gb_sxm` for all seven                    |
+| `GET /v1/models?dedicated=true` (legacy, 194 models)                | ✅ all seven listed as `transcribe`                           |
+| Together's [speech-to-text docs](https://docs.together.ai/docs/speech-to-text) table | ✅ Whisper, Parakeet, Nemotron ×2; Deepgram ×3 dedicated-only |
+| `togethercomputer/skills` GitHub STT reference                      | "Serverless" for the four open models; "Dedicated / Reserved" for Deepgram |
 
-**One source reads differently.** The `togethercomputer/skills` GitHub repo
-([`stt-models.md`](https://github.com/togethercomputer/skills/blob/main/skills/together-audio/references/stt-models.md))
-has a single-valued *Access* column: Whisper, Parakeet and both Nemotrons are
-labeled **"Serverless"**, and Deepgram **"Dedicated / Reserved"**. That is
-very likely where the "ASR is serverless-only" impression comes from. It is a
-coarse primary-access label, not an exclusivity claim — the same repo's audio
-skill says to use the dedicated-inference skill "when the audio model itself
-must be hosted on dedicated infrastructure," and the dedicated-inference skill
-lists `transcribe` as a catalog category. It is also a snapshot that has drifted
-from the live catalog: it uses Deepgram IDs `deepgram/deepgram-flux` and
-`deepgram/deepgram-nova-3`, whereas the live API and docs use
-`deepgram/flux`, `deepgram/nova-3-en` and `deepgram/nova-3-multi` (the IDs
-this repo's harness uses, and that return the real `non-serverless` error).
-Neither the GitHub repos nor their issue trackers say anything about realtime
-streaming on a dedicated endpoint.
+The legacy v1 endpoints and the docs table say yes; the v2 catalog — the
+platform where new endpoints are actually created — says no. The simplest
+reading is that the v1 catalog and the docs table are stale and **STT is
+currently serverless-only for new deployments**, which would match the GitHub
+skills repo and the original claim in `agent-handover.md` that this file
+previously "corrected." That reading is plausible but **not confirmed**: nobody
+has attempted a v2 deployment of an STT model, and the v2 "supported models"
+list is described as Together-hosted base models with certified profiles, so
+absence may mean "no certified profile yet" rather than "impossible."
 
-### What is still unverified
+**Do not tell a customer that dedicated ASR is available** until Together
+confirms it or a v2 deployment succeeds. Serverless STT is solid and priced;
+that is the safe claim.
 
-**No endpoint has been created or exercised.** Everything above is catalog
-evidence. In particular, it is **not established that a dedicated STT endpoint
-serves the realtime WebSocket API** this pipeline uses
-(`client.beta.realtime.transcription`) rather than only batch
-`/v1/audio/transcriptions`. The docs list batch and realtime streaming for the
-model families but don't state which path a dedicated deployment exposes.
-Confirming it takes one short-lived endpoint (≈ $0.09 per minute of GPU time)
-— worth doing before promising a customer a dedicated streaming ASR path.
+### Resolving it
 
-### Consequences
+Any one of these settles it:
 
-- **If a BAA forces dedicated deployment, the audio tier is the cheap half of
-  that bill** — one H100, versus 2–8 for the structuring LLM.
-- **For the three Deepgram models, dedicated is the *only* way in.** They
-  cannot be trialled on serverless first, so evaluating them means paying for
-  an endpoint before you know whether the model is any good.
+- Ask Together (a Solutions Engineer or support) whether any STT model is
+  deployable on dedicated model inference v2, and whether a dedicated STT
+  endpoint serves the realtime WebSocket API.
+- Attempt `tg beta endpoints deploy` for `openai/whisper-large-v3` on v2. If
+  supported it creates a billed endpoint (≈ $0.09/min of GPU time), so only
+  with deliberate intent; if unsupported it should fail without cost.
+- Re-check `GET api.together.ai/v2/supported-models?search=whisper` periodically
+  — it is free and will show the model the day it is added.
 
-The general argument for wanting the same model ID available in both serving
-modes — hybrid reserved-plus-overflow serving — and its two caveats (same ID
-doesn't guarantee identical behavior; catalog availability isn't a contract)
-are written up in [`model-selection-llm.md`](model-selection-llm.md#the-strongest-case-for-availability-in-both-serving-modes)
-and apply equally here.
+### Sources that mislead
+
+- **The legacy catalog is not the current platform.** `/v1/hardware` and
+  `/v1/models?dedicated=true` still answer, and look authoritative, but
+  reflect the pre-v2 catalog. Everything in the "Dedicated config" column of
+  the candidate table and the dedicated price in the Pricing section comes from
+  that legacy source.
+- **The GitHub skills repo is a drifted snapshot.** It uses Deepgram IDs
+  `deepgram/deepgram-flux` and `deepgram/deepgram-nova-3`, while the live API
+  uses `deepgram/flux`, `deepgram/nova-3-en` and `deepgram/nova-3-multi`. Its
+  single-valued *Access* column is a coarse label, though here it happens to
+  agree with the v2 catalog.
+- Neither the GitHub repos nor their trackers say anything about realtime
+  streaming on a dedicated endpoint.
+
+### If dedicated STT does turn out to be available
+
+- **If a BAA forces dedicated deployment, the audio tier would be the cheap
+  half of that bill** — one H100, versus 2–8 for the structuring LLM.
+- **The three Deepgram models are dedicated-only** (confirmed: serverless calls
+  return `non-serverless model`), so they cannot be trialled first.
+
+If dedicated STT is *not* available, a BAA requirement has to be met some other
+way (a BAA covering serverless, or a different vendor) — which is a materially
+different conversation from "reserve a GPU."
+
+The general argument for wanting the same model ID in both serving modes —
+hybrid reserved-plus-overflow serving — is in
+[`model-selection-llm.md`](model-selection-llm.md#the-strongest-case-for-availability-in-both-serving-modes)
+and only applies if both modes exist.
 
 ---
 
@@ -382,3 +467,12 @@ What the evidence does support:
 The decision rule for the re-test: gate on **CCER first, then WER, then p95** —
 and only change models if the winner clears the run-to-run noise measured
 above, on real audio, with repeats.
+
+---
+
+# Reference
+
+https://huggingface.co/datasets/ekacare/eka-medical-asr-evaluation-dataset
+
+https://huggingface.co/datasets/ekacare/eka-medical-asr-evaluation-dataset/viewer/en/test?
+sort%5Bcolumn%5D=audio&sort%5Bdirection%5D=desc&sort%5Btransform%5D=duration

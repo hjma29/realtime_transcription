@@ -268,7 +268,7 @@ def _explain(model: str, audio: Path, exc: Exception) -> str:
         import httpx
         with open(audio, "rb") as fh:
             r = httpx.post(
-                "https://api.together.xyz/v1/audio/transcriptions",
+                "https://api.together.ai/v1/audio/transcriptions",
                 headers={"Authorization": f"Bearer {os.environ.get('TOGETHER_API_KEY', '')}"},
                 files={"file": (audio.name, fh, "audio/wav")},
                 data={"model": model},

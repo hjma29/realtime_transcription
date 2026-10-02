@@ -200,22 +200,33 @@ session history for how a synthetic WAV was first created).
   [`model-selection-asr.md`](model-selection-asr.md) and
   [`model-selection-llm.md`](model-selection-llm.md) — prefer those files as
   the source of truth; the notes below are the raw log:
-  - **ASR tier** (`openai/whisper-large-v3`): **dedicated-capable at
-    `1x_nvidia_h100_80gb_sxm`** — re-verified live against `GET
-    /v1/hardware` on 2026-10-01. The entire STT catalog (Whisper, Parakeet,
-    Nemotron-ASR, Deepgram Flux, Nova-3) deploys dedicated on a single
-    H100. An earlier note in this file claimed no dedicated STT path
-    existed; that was **wrong** and has been corrected here and in the
-    deck (slides 4 and 6). Confirmed three ways (hardware API, `/v1/models?dedicated=true`, and Together's STT docs table) — but
-    **no endpoint has been created**, so it is unverified that a dedicated STT
-    endpoint serves the *realtime WebSocket* API this pipeline uses (vs. batch only).
-    See `model-selection-asr.md` for pricing ($0.0015/audio-min serverless; $5.40/hr per dedicated H100).
-  - **LLM/structuring tier**: `meta-llama/Llama-3.3-70B-Instruct-Turbo`
-    (current, serverless FP8) deploys dedicated on **2x/4x/8x H100**, and
-    `meta-llama/Llama-3.3-70B-Instruct` (BF16) on 4x/8x. Going dedicated is
-    therefore a **deployment change on the same model ID — not a model
-    swap**; the FP8 Turbo variant reserves at half the GPU footprint of
-    BF16. An earlier note claiming a model swap was required was wrong.
+  - **ASR tier** (`openai/whisper-large-v3`) — **dedicated availability is
+    UNRESOLVED; do not claim it to a customer.** Two Together catalogs
+    disagree. The *legacy* v1 catalog (`GET /v1/hardware`,
+    `/v1/models?dedicated=true`) and Together's STT docs table say all seven
+    STT models deploy on 1x H100. But the *current* dedicated-inference **v2**
+    catalog (`GET https://api.together.ai/v2/supported-models`, 48 models)
+    contains **no STT models** (only two TTS), and v1 endpoint creation has
+    been disabled since the v2 launch (2026-07-16). The GitHub
+    `togethercomputer/skills` STT reference also labels the four open models
+    "Serverless". Most likely reading: STT is serverless-only for new
+    deployments. **No endpoint has been created or attempted.** History: this
+    file once said "no dedicated STT path"; that was "corrected" on legacy-
+    catalog evidence, and is now re-opened on v2 evidence. The deck's slides
+    4 and 6 assert dedicated ASR on a single H100 and need softening. Serverless
+    ASR ($0.0015/audio-min) is solid. See `model-selection-asr.md`.
+  - **LLM/structuring tier**: serverless `Llama-3.3-70B-Instruct-Turbo` (FP8)
+    is **not in the v2 catalog**; only the BF16 `Llama-3.3-70B-Instruct` is
+    (one profile, **4x H100**). So going dedicated is probably a **model
+    swap** (as originally written here), with a different footprint (4x H100,
+    not 2x) and different numerics (FP8 -> BF16) needing a regression check.
+    The legacy `/v1/hardware` catalog still lists Turbo on 2x/4x/8x H100 but
+    is stale. Not confirmed by deployment. See `model-selection-llm.md`.
+  - **API hosts / "v2"**: use `https://api.together.ai/v1` for all inference.
+    `api-inference.together.ai/v2` (listed in the OpenAPI server dropdown)
+    404s. The real v2 is the dedicated-endpoints control plane at
+    `https://api.together.ai/v2`. Python SDK v2 (GA 2026-02-04) is what
+    `pip install together` gives.
   - `openai/gpt-oss-120b`: 100% reliable but **13.2s mean / 30.6s p95
     structuring latency** — too slow for near-real-time, disqualified
     despite being Together's documented "Top Model" for structured outputs.

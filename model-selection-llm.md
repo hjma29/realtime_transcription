@@ -84,7 +84,7 @@ in both places.
 
 ```bash
 curl -s -H "Authorization: Bearer $TOGETHER_API_KEY" \
-  https://api.together.xyz/v1/models \
+  https://api.together.ai/v1/models \
   | python3 -c "import json,sys;[print(m['id']) for m in json.load(sys.stdin)]" \
   | grep -i qwen
 ```
@@ -93,17 +93,21 @@ Model names in the wild are usually approximations — always resolve the real I
 
 ### 2. Is it dedicated-capable?
 
+**Ask the v2 catalog first.** New dedicated endpoints can only be created on
+dedicated model inference v2 (v1 creation is disabled since July 2026):
+
 ```bash
 curl -s -G -H "Authorization: Bearer $TOGETHER_API_KEY" \
-  --data-urlencode "model=<id>" https://api.together.xyz/v1/hardware
+  --data-urlencode "search=<name>" https://api.together.ai/v2/supported-models
+# empty "data" array => no certified v2 deployment profile
 ```
 
-Returns GPU configurations, or `{"error": {... "No GPU configurations found ..."}}` if the model has no dedicated path.
+Each hit carries `deploymentProfiles` (GPU type/count, quantization).
 
-> **This check is control-tested.** Bogus model IDs and
-> `Llama-4-Maverick-17B-128E-Instruct-FP8` both return the error, so a
-> non-empty result is meaningful. Note that `GET /v1/models` has **no**
-> dedicated flag — `/v1/hardware` is the only way to answer this.
+The legacy `GET /v1/hardware?model=<id>` still answers but reflects the pre-v2
+catalog, and **disagrees with v2** — e.g. it reports Llama-3.3-70B-**Turbo** as
+deployable on 2/4/8x H100 while v2 lists only the BF16 sibling. Don't rely on it
+alone. `GET /v1/models` carries no dedicated flag.
 
 ### 3. Is it serverless, and does sync JSON schema work?
 
@@ -182,21 +186,35 @@ latency first — in that order.
 
 ## Dedicated endpoint readiness
 
-Re-verified 2026-10-02 via `/v1/hardware`:
+Two Together catalogs disagree, so this is stated per source (checked
+2026-10-02). Dedicated endpoints v2 launched **July 16, 2026** and new
+deployments must use it, so v2 governs.
 
+| Model | v2 catalog (`/v2/supported-models`) | Legacy v1 (`/v1/hardware`) |
+| --- | --- | --- |
+| `meta-llama/Llama-3.3-70B-Instruct-Turbo` (FP8, current) | **Not listed** | 2x / 4x / 8x H100 |
+| `meta-llama/Llama-3.3-70B-Instruct` (BF16) | Listed — 1 profile: **4x H100**, TP4 | 4x / 8x H100 |
+| `openai/gpt-oss-120b`, `MiniMaxAI/MiniMax-M3` | Listed | — |
+| `google/gemma-4-31B-it`, `Qwen/Qwen3.5-397B-A17B` | Listed | 2x H100 / 4x B200 |
+| `Qwen/Qwen3.7-Plus` | **Not listed** | No config |
 
-| Model                                      | Dedicated configurations |
-| ------------------------------------------ | ------------------------ |
-| `meta-llama/Llama-3.3-70B-Instruct-Turbo`  | 2x / 4x / 8x H100        |
-| `meta-llama/Llama-3.3-70B-Instruct` (BF16) | 4x / 8x H100             |
+**Implication: going dedicated probably *is* a model swap**, from the serverless
+FP8 Turbo ID to the BF16 `Llama-3.3-70B-Instruct` ID at 4x H100 — which is what
+`agent-handover.md` originally said. This file previously "corrected" that to
+"same ID, half the GPUs" based on the legacy catalog; that correction rested on
+the stale source. Not confirmed by an actual deployment, but v2 is the platform
+where deployments are created.
 
-**Going dedicated is a deployment change, not a model swap.** The Turbo ID
-deploys dedicated as-is, and because it is FP8 it reserves at *half* the GPU
-footprint of the BF16 variant. Migration is a `base_url` change with the same
-model ID. (An earlier version of `agent-handover.md` claimed a swap to the
-BF16 ID was required; that was wrong.)
+Two consequences:
 
-For the audio tier's dedicated story, see
+- **FP8 serverless and BF16 dedicated are different numerics**, so the
+  "same weights in both modes" premise of hybrid serving doesn't hold. Budget
+  a real billing-code regression check before cutover, not a smoke test.
+- **The footprint is 4x H100, not 2x** — roughly double the cost estimate that
+  the "half the GPUs" claim implied.
+
+For the audio tier, where the conflict is sharper (v2 lists no STT models at
+all), see
 [`model-selection-asr.md`](model-selection-asr.md#dedicated-endpoint-readiness).
 
 ---
@@ -208,8 +226,9 @@ candidate that satisfies all four requirements simultaneously:
 
 - serverless-testable (no spend to evaluate, and usable for burst overflow)
 - sync JSON schema (no call-path rewrite)
-- dedicated-ready on the same model ID (clean compliance path, and hybrid
-  reserved-plus-overflow serving stays open)
+- a dedicated path exists — via the BF16 sibling `Llama-3.3-70B-Instruct` at
+  4x H100, since the Turbo ID itself is not in the v2 catalog (so migration is
+  a model swap needing a regression check, not a `base_url` change)
 - **inside the latency budget** (2.3s vs. a 15-20x penalty elsewhere)
 
 The fourth is the one that actually eliminated every alternative tested so
