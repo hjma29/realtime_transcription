@@ -33,37 +33,6 @@
       </div>
     </section>
 
-    <section class="metrics">
-      <div class="metric-card">
-        <div class="metric-label">Last TTFS</div>
-        <div id="lastTtfs" class="metric-value">&mdash;</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Mean TTFS</div>
-        <div id="meanTtfs" class="metric-value">&mdash;</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">p95 TTFS</div>
-        <div id="p95Ttfs" class="metric-value">&mdash;</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Segments</div>
-        <div id="segCount" class="metric-value">0</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Last structuring</div>
-        <div id="lastStructuring" class="metric-value">&mdash;</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">LLM TTFT</div>
-        <div id="lastTtft" class="metric-value">&mdash;</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">LLM TPS</div>
-        <div id="lastTps" class="metric-value">&mdash;</div>
-      </div>
-    </section>
-
     <section class="panels">
       <div class="panel">
         <h2>Transcript</h2>
@@ -97,6 +66,37 @@
       ICD-10-CM/CPT codes &rarr; mandatory clinician review &rarr; FHIR
       write-back into the EHR chart (DocumentReference / Condition /
       Procedure resources) — never auto-submitted without sign-off.
+    </section>
+
+    <section class="metrics" aria-label="Session metrics">
+      <div class="metric-card">
+        <div class="metric-label">Last TTFS</div>
+        <div id="lastTtfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mean TTFS</div>
+        <div id="meanTtfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">p95 TTFS</div>
+        <div id="p95Ttfs" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Segments</div>
+        <div id="segCount" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Last structuring</div>
+        <div id="lastStructuring" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">LLM TTFT</div>
+        <div id="lastTtft" class="metric-value">&mdash;</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">LLM TPS</div>
+        <div id="lastTps" class="metric-value">&mdash;</div>
+      </div>
     </section>
 
     <footer id="footerNote" class="footer-note"></footer>

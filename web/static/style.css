@@ -120,7 +120,7 @@ main { padding: 8px 36px 40px; max-width: 1200px; margin: 0 auto; }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
-  margin-bottom: 22px;
+  margin: 20px 0 0;
 }
 
 .metric-card {
