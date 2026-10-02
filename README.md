@@ -7,7 +7,7 @@ Streams PCM audio and receives interim + finalized transcripts using
 
 ## Vercel
 
-[Vercel](https://luminary-dictation-demo.vercel.app/?key=Boc7BN5ylDl5-l-FfhcJTzyO)
+[Vercel](https://luminary-dictation-demo.vercel.app/) (append `?key=<DEMO_ACCESS_KEY>`; the key lives in a Vercel env var, not in this repo)
 
 ## Setup
 
