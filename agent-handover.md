@@ -193,6 +193,11 @@ session history for how a synthetic WAV was first created).
   rendering) has ever been exercised by an agent — no browser exists in the
   agent environment. The user has been told to validate this themselves
   before the panel. Backend is verified end-to-end via the WS harness.
+- **Deployed on Vercel (Hobby)**: https://luminary-dictation-demo.vercel.app,
+  gated by `?key=` (`DEMO_ACCESS_KEY` env var; value not stored in the repo).
+  Backend verified end to end with `web/ws_smoke_test.py`; browser mic path not
+  yet exercised on the deployed origin. 300 s per-WebSocket cap, public-beta
+  WebSocket support. Full notes: `web/README.md`.
 - Earlier research (serverless vs. Dedicated Endpoint migration, verified
   live against Together's Dedicated Model Inference API) still stands and
   **has not been acted on in code**. This is now consolidated, with the

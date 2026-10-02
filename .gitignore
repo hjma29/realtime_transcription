@@ -6,3 +6,7 @@ __pycache__/
 web/logs/*.json
 .marimo/
 __marimo__/
+
+# Vercel project link (local project/org IDs)
+.vercel
+.env*

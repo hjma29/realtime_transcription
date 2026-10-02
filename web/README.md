@@ -116,3 +116,48 @@ Without this, audio sent while the handshake is still in flight would sit
 buffered and get drained in a burst once the server starts reading --
 making `audio_end` (cumulative appended-audio duration) race ahead of
 wall-clock time and produce bogus negative TTFS values.
+
+## Deploying to Vercel (free Hobby tier)
+
+Deployed at <https://luminary-dictation-demo.vercel.app>. The app is a standard
+FastAPI ASGI app, so Vercel runs it as a single Python Function; WebSockets are
+served natively (public beta on all plans; Python support since 2026-07-23).
+
+Files that make it work: `pyproject.toml` (dependencies + `[tool.vercel]
+entrypoint = "web.server:app"`), `vercel.json` (300 s function duration),
+`.vercelignore` (keeps the venv, logs and docs out of the upload).
+
+```bash
+npm i -g vercel            # or prefix commands with `npx`
+vercel link --project luminary-dictation-demo
+printf '%s' "$TOGETHER_API_KEY" | vercel env add TOGETHER_API_KEY production --sensitive
+printf '%s' "<random>"          | vercel env add DEMO_ACCESS_KEY production --sensitive
+vercel deploy --prod
+```
+
+Open the page as `https://luminary-dictation-demo.vercel.app/?key=<DEMO_ACCESS_KEY>`.
+`/ws/dictate` refuses (HTTP 403) any connection without the key, because every
+session spends Together API credits and the production alias is public. The
+page itself is public; it holds no secrets.
+
+Verify a deployment without a browser (streams a WAV over the real protocol):
+
+```bash
+python3 web/ws_smoke_test.py audio.wav https://luminary-dictation-demo.vercel.app --key <KEY>
+```
+
+Behaviour that differs from running locally:
+
+- **Each WebSocket is cut after 300 s** (the Hobby maximum; Pro allows 800 s).
+  The browser sees a close with no `summary`. Keep demo dictations short.
+- **WebSocket support is a public beta** and may change.
+- **No persistent logs.** The deployment bundle is read-only, so session JSON
+  goes to `/tmp` and is lost when the instance recycles; the marimo notebook
+  fallback needs logs from a local run.
+- **Mic modes are unavailable** (no PortAudio). `examples/realtime_clinical_note.py`
+  imports `sounddevice` optionally for this reason; use `--file` or the browser.
+- Use `DEMO_ACCESS_KEY` rotation (`vercel env rm` / `add`, then redeploy) if the
+  key leaks. `TOGETHER_API_KEY` is stored as a sensitive variable and can't be
+  read back from Vercel.
+- Not yet verified: the browser-side mic path (`getUserMedia`, AudioWorklet) on
+  the deployed HTTPS origin. The backend is verified end to end.

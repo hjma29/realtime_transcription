@@ -178,10 +178,15 @@ async function startDictation() {
   setStatus("connecting…");
 
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/dictate`);
+  // A deployment with DEMO_ACCESS_KEY set expects the same key in the page URL.
+  const key = new URLSearchParams(location.search).get("key");
+  const qs = key ? `?key=${encodeURIComponent(key)}` : "";
+  ws = new WebSocket(`${proto}://${location.host}/ws/dictate${qs}`);
   ws.binaryType = "arraybuffer";
+  let opened = false;
 
   ws.onopen = () => {
+    opened = true;
     setStatus("warming up ASR session…");
     dictateBtn.textContent = "\u25A0 Stop Dictation";
     dictateBtn.classList.add("recording");
@@ -281,6 +286,10 @@ async function startDictation() {
   };
 
   ws.onclose = () => {
+    if (!opened) {
+      setStatus("connection refused — is the access key (?key=…) in the URL?");
+      return;
+    }
     if (recording) stopDictation(/* alreadyClosed */ true);
   };
 }

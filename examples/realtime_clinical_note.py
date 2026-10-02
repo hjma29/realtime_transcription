@@ -27,7 +27,12 @@ import sys
 import wave
 from pathlib import Path
 
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    # No PortAudio (e.g. a serverless host). Only the local-mic modes need it;
+    # file input and the web demo's browser audio path work without it.
+    sd = None
 from pydantic import BaseModel, Field
 
 from together import AsyncTogether, Together
@@ -145,6 +150,8 @@ def structure_transcript(
 
 async def dictate(device: int | str | None, session) -> str:
     """Stream live mic audio into an already-open realtime ASR session."""
+    if sd is None:
+        raise SystemExit("Mic input needs sounddevice/PortAudio; use --file instead.")
     audio_queue: "asyncio.Queue[bytes]" = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
@@ -271,6 +278,8 @@ async def run_session(audio_source) -> tuple[str, ClinicalNote | None]:
 
 async def main() -> None:
     if "--list-devices" in sys.argv:
+        if sd is None:
+            raise SystemExit("sounddevice/PortAudio is not installed.")
         print(sd.query_devices())
         return
 

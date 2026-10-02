@@ -1,0 +1,16 @@
+[project]
+name = "luminary-dictation-demo"
+version = "1.3.0"
+description = "Real-time clinical dictation demo: Together AI streaming ASR + schema-constrained note structuring."
+requires-python = ">=3.12"
+# Runtime dependencies for the web demo only. The local mic modes additionally
+# need sounddevice + numpy (see README); they are intentionally not listed
+# here because PortAudio is unavailable on serverless hosts.
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2",
+    "together[realtime]>=2.39.0",
+]
+
+[tool.vercel]
+entrypoint = "web.server:app"

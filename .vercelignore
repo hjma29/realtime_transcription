@@ -1,0 +1,19 @@
+.venv
+.git
+__pycache__
+*.pyc
+web/logs
+*.wav
+*.aiff
+.marimo
+__marimo__
+# docs and tooling the deployed app never reads
+*.md
+!web/README.md
+examples/benchmark.py
+examples/benchmark_asr.py
+examples/list_models.py
+examples/measure_ttfs.py
+examples/realtime_mic_transcription.py
+examples/realtime_transcription.py
+examples/structured_clinical_note.py

@@ -30,9 +30,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
+import os
 import statistics
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,7 +59,16 @@ from together.realtime import (  # noqa: E402
 WEB_DIR = Path(__file__).resolve().parent
 STATIC_DIR = WEB_DIR / "static"
 LOGS_DIR = WEB_DIR / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+try:
+    LOGS_DIR.mkdir(exist_ok=True)
+except OSError:
+    # Read-only deployment bundle (e.g. Vercel): only /tmp is writable.
+    LOGS_DIR = Path(tempfile.gettempdir()) / "luminary_logs"
+    LOGS_DIR.mkdir(exist_ok=True)
+
+# When set, /ws/dictate requires ?key=<value>. Every dictation session spends
+# Together API credits, so a publicly reachable deployment should set this.
+ACCESS_KEY = os.environ.get("DEMO_ACCESS_KEY")
 
 # Bump this whenever the demo's behaviour changes. It's rendered in the page
 # header next to a short build hash of the static assets, so during a live
@@ -222,6 +234,11 @@ def _summarize(values: list[float]) -> dict | None:
 
 @app.websocket("/ws/dictate")
 async def ws_dictate(ws: WebSocket) -> None:
+    if ACCESS_KEY and not hmac.compare_digest(
+        ws.query_params.get("key", ""), ACCESS_KEY
+    ):
+        await ws.close(code=1008)  # policy violation; rejected before accept
+        return
     await ws.accept()
 
     client = AsyncTogether()
