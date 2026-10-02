@@ -206,7 +206,10 @@ session history for how a synthetic WAV was first created).
     Nemotron-ASR, Deepgram Flux, Nova-3) deploys dedicated on a single
     H100. An earlier note in this file claimed no dedicated STT path
     existed; that was **wrong** and has been corrected here and in the
-    deck (slides 4 and 6).
+    deck (slides 4 and 6). Confirmed three ways (hardware API, `/v1/models?dedicated=true`, and Together's STT docs table) — but
+    **no endpoint has been created**, so it is unverified that a dedicated STT
+    endpoint serves the *realtime WebSocket* API this pipeline uses (vs. batch only).
+    See `model-selection-asr.md` for pricing ($0.0015/audio-min serverless; $5.40/hr per dedicated H100).
   - **LLM/structuring tier**: `meta-llama/Llama-3.3-70B-Instruct-Turbo`
     (current, serverless FP8) deploys dedicated on **2x/4x/8x H100**, and
     `meta-llama/Llama-3.3-70B-Instruct` (BF16) on 4x/8x. Going dedicated is

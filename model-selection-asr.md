@@ -37,6 +37,49 @@ endpoint, so they are absent from the measured results below.
 
 ---
 
+## Pricing
+
+**Serverless: $0.0015 per audio minute ($0.09 per audio hour), identical for
+all four serverless STT models.** Sources agree: the model catalog's
+`pricing.transcribe.price_per_minute`, and the "Speech-to-Text" rows of the
+[serverless models docs](https://docs.together.ai/docs/serverless-models).
+Because the four models cost the same, price does not separate them — the
+choice is accuracy and latency.
+
+**Dedicated: $0.09 per minute of GPU time ($5.40/hour) for one H100**, from
+`GET /v1/hardware` (`cents_per_minute: 9`). It is billed while the endpoint
+runs, whether or not it is busy. Cross-checked for linear scaling against the
+Llama configs (2x = 18, 4x = 36, 8x = 72). The three Deepgram models have no
+serverless price; dedicated is their only option, at the same GPU rate.
+
+### Break-even
+
+`$5.40/hr ÷ $0.09 per audio-hour = 60`. A dedicated H100 only beats serverless
+at about **60 audio-hours transcribed per wall-clock hour** — roughly 60 live
+streams sustained around the clock. A clinic with morning-peak dictation sits
+far below that, so **on cost alone the ASR tier stays serverless for a long
+time.** Dedicated ASR is justified by a BAA/compliance requirement or by tail
+latency under load, not by price.
+
+Caveats on that arithmetic:
+
+- It assumes one H100 can serve ~60 concurrent streams. **Not measured**, so
+  the true break-even is probably higher.
+- It ignores idle time, which only makes dedicated look worse.
+
+### Pricing sources that disagree or mislead
+
+- **Ignore the legacy token fields.** The model catalog also carries
+  `input: 0.27 / output: 0.85` for Whisper and `input: 0.45` for Nemotron-3.
+  These are not ASR pricing; the `transcribe` object is.
+- **The marketing page differs.** `together.ai/pricing` lists "Parakeet TDT
+  0.6B V3 Realtime" at **$0.0035** under a heading reading "Price per 1M
+  Characters" (a TTS label — likely a table glitch, possibly a distinct
+  realtime SKU). The docs and API agree with each other at $0.0015, so treat
+  those as authoritative, but confirm with Together before quoting a customer.
+
+---
+
 ## How to verify a candidate (reproducible)
 
 ### 1. Does it exist, and what is the exact ID?
@@ -259,11 +302,32 @@ number — not a list-price comparison — is what justifies reserved capacity.
 ## Dedicated endpoint readiness
 
 All seven STT models deploy dedicated on a single GPU
-(`1x_nvidia_h100_80gb_sxm`), re-verified 2026-10-02 via `/v1/hardware`. There is
-no dedicated gap on the audio tier. (An earlier version of `agent-handover.md`
-claimed there was; that was wrong.)
+(`1x_nvidia_h100_80gb_sxm`). There is no dedicated gap on the audio tier. (An
+earlier version of `agent-handover.md` claimed there was; that was wrong.)
 
-Two practical consequences:
+Three independent sources agree:
+
+1. `GET /v1/hardware?model=<id>` returns a `1x_nvidia_h100_80gb_sxm` config for
+   all seven, with `availability.status: available`.
+2. `GET /v1/models?dedicated=true` lists all seven `transcribe` models in the
+   dedicated catalog.
+3. Together's own [speech-to-text docs](https://docs.together.ai/docs/speech-to-text)
+   publish a Serverless / Dedicated table: Whisper, Parakeet, Nemotron-3 and
+   Nemotron-3.5 are ✅ on both; the three Deepgram models are ❌ serverless,
+   ✅ dedicated.
+
+### What is still unverified
+
+**No endpoint has been created or exercised.** Everything above is catalog
+evidence. In particular, it is **not established that a dedicated STT endpoint
+serves the realtime WebSocket API** this pipeline uses
+(`client.beta.realtime.transcription`) rather than only batch
+`/v1/audio/transcriptions`. The docs list batch and realtime streaming for the
+model families but don't state which path a dedicated deployment exposes.
+Confirming it takes one short-lived endpoint (≈ $0.09 per minute of GPU time)
+— worth doing before promising a customer a dedicated streaming ASR path.
+
+### Consequences
 
 - **If a BAA forces dedicated deployment, the audio tier is the cheap half of
   that bill** — one H100, versus 2–8 for the structuring LLM.
