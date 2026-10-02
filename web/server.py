@@ -57,13 +57,32 @@ STATIC_DIR = WEB_DIR / "static"
 LOGS_DIR = WEB_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
+
+class NoCacheStaticFiles(StaticFiles):
+    """Plain StaticFiles lets browsers cache app.js/style.css indefinitely,
+    so edits made during active demo-prep (like this one) silently keep
+    serving a stale cached copy even after a hard page reload -- very
+    confusing mid-iteration. This is a local single-user demo, not a
+    production asset pipeline, so just disable caching outright instead of
+    fiddling with cache-busting query params on every edit.
+    """
+
+    def file_response(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
+
+
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(
+        STATIC_DIR / "index.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
 
 
 async def structure_transcript_streaming(
