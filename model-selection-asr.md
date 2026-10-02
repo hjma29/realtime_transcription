@@ -316,6 +316,22 @@ Three independent sources agree:
    Nemotron-3.5 are ✅ on both; the three Deepgram models are ❌ serverless,
    ✅ dedicated.
 
+**One source reads differently.** The `togethercomputer/skills` GitHub repo
+([`stt-models.md`](https://github.com/togethercomputer/skills/blob/main/skills/together-audio/references/stt-models.md))
+has a single-valued *Access* column: Whisper, Parakeet and both Nemotrons are
+labeled **"Serverless"**, and Deepgram **"Dedicated / Reserved"**. That is
+very likely where the "ASR is serverless-only" impression comes from. It is a
+coarse primary-access label, not an exclusivity claim — the same repo's audio
+skill says to use the dedicated-inference skill "when the audio model itself
+must be hosted on dedicated infrastructure," and the dedicated-inference skill
+lists `transcribe` as a catalog category. It is also a snapshot that has drifted
+from the live catalog: it uses Deepgram IDs `deepgram/deepgram-flux` and
+`deepgram/deepgram-nova-3`, whereas the live API and docs use
+`deepgram/flux`, `deepgram/nova-3-en` and `deepgram/nova-3-multi` (the IDs
+this repo's harness uses, and that return the real `non-serverless` error).
+Neither the GitHub repos nor their issue trackers say anything about realtime
+streaming on a dedicated endpoint.
+
 ### What is still unverified
 
 **No endpoint has been created or exercised.** Everything above is catalog
