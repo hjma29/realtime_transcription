@@ -62,7 +62,7 @@ LOGS_DIR.mkdir(exist_ok=True)
 # header next to a short build hash of the static assets, so during a live
 # demo (or mid-iteration) you can tell at a glance whether the browser is
 # actually running the current code or a stale cached copy.
-APP_VERSION = "1.2"
+APP_VERSION = "1.3"
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -290,6 +290,13 @@ async def ws_dictate(ws: WebSocket) -> None:
         elif isinstance(event, TranscriptDelta):
             loop.create_task(send_json({"type": "interim", "text": event.text}))
         elif isinstance(event, TranscriptCompleted):
+            # Whisper occasionally finalizes an empty/whitespace-only segment
+            # (an artifact around silence). Dropping it keeps the transcript
+            # free of blank timestamped rows, keeps the structuring input
+            # clean, and avoids polluting TTFS stats with a meaningless
+            # zero-length utterance.
+            if not event.text or not event.text.strip():
+                return
             ttfs = None
             if stream_start is not None and event.audio_end is not None:
                 ttfs = time.monotonic() - stream_start - event.audio_end
@@ -299,6 +306,7 @@ async def ws_dictate(ws: WebSocket) -> None:
                 {
                     "index": len(finalized) - 1,
                     "text": event.text,
+                    "audio_start_s": event.audio_start,
                     "audio_end_s": event.audio_end,
                     "ttfs_ms": round(ttfs * 1000, 1) if ttfs is not None else None,
                 }
@@ -309,6 +317,8 @@ async def ws_dictate(ws: WebSocket) -> None:
                         "type": "final",
                         "text": event.text,
                         "segment_index": len(finalized) - 1,
+                        "audio_start_s": event.audio_start,
+                        "audio_end_s": event.audio_end,
                         "ttfs_ms": round(ttfs * 1000, 1) if ttfs is not None else None,
                         "ttfs_summary": _summarize(ttfs_values),
                     }

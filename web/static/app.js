@@ -21,7 +21,9 @@ let micStream = null;
 let workletNode = null;
 let ws = null;
 let recording = false;
-let interimSpan = null;
+let interimBlock = null;
+let interimStartedAtS = 0;
+let captureStartMs = null; // wall-clock t=0 for transcript timestamps
 
 function fmtMs(ms) {
   if (ms === null || ms === undefined) return "—";
@@ -48,6 +50,9 @@ function resetUi() {
   lastTtftEl.textContent = "—";
   lastTpsEl.textContent = "—";
   sourceJsonEl.textContent = "{}";
+  interimBlock = null;
+  interimStartedAtS = 0;
+  captureStartMs = null;
 }
 
 // Renders the structured note the way real ambient-scribe products (DAX
@@ -100,27 +105,71 @@ attestBtn.addEventListener("click", () => {
   attestBtn.classList.remove("enabled");
 });
 
-function appendFinalSegment(text, index) {
-  if (transcriptEl.querySelector(".placeholder")) transcriptEl.innerHTML = "";
-  if (interimSpan) {
-    interimSpan.remove(); // drop the in-progress (gray) span -- the final
-    interimSpan = null;   // text below fully replaces it, don't leave both.
+function fmtClock(seconds) {
+  if (seconds === null || seconds === undefined || !isFinite(seconds)) return "--:--";
+  const s = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// Renders one utterance as a speaker-labelled, timestamped block (the
+// layout Corti Assistant and other ambient-scribe UIs use) rather than one
+// run-on paragraph -- far easier to follow back to a point in the audio.
+// There's no diarization here (single dictation mic), so every utterance is
+// attributed to "You"; a real ambient product would separate clinician vs.
+// patient turns.
+function makeUtterance(text, offsetSeconds, isInterim) {
+  const block = document.createElement("div");
+  block.className = "utterance" + (isInterim ? " utterance-interim" : "");
+
+  const meta = document.createElement("div");
+  meta.className = "utt-meta";
+  const who = document.createElement("span");
+  who.className = "utt-speaker";
+  who.textContent = "You";
+  const when = document.createElement("span");
+  when.className = "utt-time";
+  when.textContent = fmtClock(offsetSeconds);
+  meta.appendChild(who);
+  meta.appendChild(when);
+
+  const body = document.createElement("div");
+  body.className = "utt-text";
+  body.textContent = text;
+
+  block.appendChild(meta);
+  block.appendChild(body);
+  return block;
+}
+
+function clearPlaceholder() {
+  const ph = transcriptEl.querySelector(".placeholder");
+  if (ph) transcriptEl.innerHTML = "";
+}
+
+function appendFinalSegment(text, index, audioStartS) {
+  clearPlaceholder();
+  if (interimBlock) {
+    interimBlock.remove(); // the finalized text below replaces the live
+    interimBlock = null;   // in-progress block -- don't leave both visible.
   }
-  const span = document.createElement("span");
-  span.className = "final";
-  span.textContent = (index > 0 ? " " : "") + text;
-  transcriptEl.appendChild(span);
+  // Prefer the server's audio_start (authoritative position within the
+  // stream); fall back to the interim block's locally-measured offset.
+  const offset = audioStartS != null ? audioStartS : interimStartedAtS;
+  transcriptEl.appendChild(makeUtterance(text, offset, false));
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
 }
 
 function showInterim(text) {
-  if (transcriptEl.querySelector(".placeholder")) transcriptEl.innerHTML = "";
-  if (!interimSpan) {
-    interimSpan = document.createElement("span");
-    interimSpan.className = "interim";
-    transcriptEl.appendChild(interimSpan);
+  clearPlaceholder();
+  if (!interimBlock) {
+    // Timestamp the moment this utterance started, not "now", so the label
+    // doesn't creep forward while the speaker is still mid-sentence.
+    interimStartedAtS = captureStartMs ? (Date.now() - captureStartMs) / 1000 : 0;
+    interimBlock = makeUtterance(text, interimStartedAtS, true);
+    transcriptEl.appendChild(interimBlock);
+  } else {
+    interimBlock.querySelector(".utt-text").textContent = text;
   }
-  interimSpan.textContent = " " + text;
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
 }
 
@@ -163,6 +212,10 @@ async function startDictation() {
     });
     workletNode.port.onmessage = (event) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
+        // t=0 for transcript timestamps is the first PCM chunk actually
+        // sent, matching the server's `stream_start` reference so locally
+        // measured interim offsets line up with server audio_start values.
+        if (captureStartMs === null) captureStartMs = Date.now();
         ws.send(event.data); // raw Int16 PCM ArrayBuffer
       }
     };
@@ -188,7 +241,7 @@ async function startDictation() {
         showInterim(msg.text);
         break;
       case "final":
-        appendFinalSegment(msg.text, msg.segment_index);
+        appendFinalSegment(msg.text, msg.segment_index, msg.audio_start_s);
         lastTtfsEl.textContent = fmtMs(msg.ttfs_ms);
         segCountEl.textContent = String(msg.segment_index + 1);
         if (msg.ttfs_summary) {

@@ -308,18 +308,54 @@ main {
 .transcript-box {
   font-size: 1.05rem;
   line-height: 1.6;
-  max-height: 420px;
+  max-height: 460px;
   overflow-y: auto;
 }
 
 .transcript-box .placeholder { color: var(--dim); font-style: italic; }
-.transcript-box .final { color: var(--text); }
-.transcript-box .interim { color: var(--interim); font-style: italic; }
-.transcript-box .seg-meta {
+
+/* Corti-Assistant-style timestamped utterance blocks: a small speaker +
+   MM:SS header above each finalized turn, so the transcript reads as a
+   timeline you can scan rather than one continuous paragraph. */
+.utterance {
+  margin-bottom: 14px;
+}
+
+.utt-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.utt-speaker {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #c9d4e8;
+}
+
+.utt-time {
+  font-size: 0.74rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.utt-text {
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.utterance-interim .utt-text {
+  color: var(--interim);
+  font-style: italic;
+}
+
+.utterance-interim .utt-time::after {
+  content: " ·  live";
   color: var(--accent);
-  font-size: 0.72rem;
-  vertical-align: super;
-  margin-left: 4px;
+  font-style: normal;
 }
 
 .note-box {

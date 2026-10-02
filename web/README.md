@@ -15,6 +15,15 @@ and an "Attest & Send to EHR" button, not a raw JSON blob — this demo has no
 real EHR behind that button, it just shows what production write-back would
 do.
 
+The transcript panel follows Corti Assistant's layout: each finalized
+utterance is its own block with a speaker label and an `MM:SS` offset into
+the recording, so the transcript reads as a scannable timeline rather than
+one run-on paragraph. Timestamps come from the ASR's `audio_start` (position
+within the audio stream, not wall-clock), and the in-progress utterance is
+shown italicized with a `live` marker until it finalizes. There's no
+diarization here — it's a single dictation mic, so every turn is labeled
+"You"; a production ambient scribe would split clinician vs. patient turns.
+
 ## Run it
 
 ```bash
