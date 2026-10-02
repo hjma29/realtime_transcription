@@ -35,6 +35,16 @@ export TOGETHER_API_KEY=...
 python3 web/server.py       # open http://localhost:8000
 ```
 
+**Hosted copy (Vercel, free Hobby tier):** <https://luminary-dictation-demo.vercel.app>
+
+The page loads publicly, but dictation requires an access key, because each
+session spends Together API credits. Open it as
+`https://luminary-dictation-demo.vercel.app/?key=<DEMO_ACCESS_KEY>`; the key is
+a Vercel environment variable and is deliberately not stored in this repo.
+Each WebSocket is cut after 300 s (the Hobby maximum), so keep dictations short.
+Deployment steps, limits, and a headless check (`web/ws_smoke_test.py`) are in
+[`web/README.md`](web/README.md#deploying-to-vercel-free-hobby-tier).
+
 ### One-command demo: live dictation -> structured JSON note (`realtime_clinical_note.py`)
 
 This is the main script — a single file, single command, no manual
