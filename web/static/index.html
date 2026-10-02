@@ -4,11 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Realtime Clinical Dictation Demo</title>
-<link rel="stylesheet" href="/static/style.css" />
+<link rel="stylesheet" href="/static/style.css?v=__ASSET_V__" />
 </head>
 <body>
   <header>
-    <h1>Realtime Clinical Dictation Demo</h1>
+    <h1>
+      Realtime Clinical Dictation Demo
+      <span class="app-version" id="appVersion" title="App version / static-asset build hash — if this doesn't change after an edit, you're on a cached copy">v__APP_VERSION__ · build __ASSET_V__</span>
+    </h1>
     <p class="subtitle">
       Mic &rarr; Together.AI streaming ASR (<code>whisper-large-v3</code>) &rarr;
       incremental structured JSON note (<code>Llama-3.3-70B-Instruct-Turbo</code>)
@@ -90,6 +93,12 @@
     <footer id="footerNote" class="footer-note"></footer>
   </main>
 
-  <script src="/static/app.js"></script>
+  <script>
+    // Injected by server.py so app.js can version the AudioWorklet URL too,
+    // and so the header badge can show exactly which build is loaded.
+    window.__ASSET_V = "__ASSET_V__";
+    window.__APP_VERSION = "__APP_VERSION__";
+  </script>
+  <script src="/static/app.js?v=__ASSET_V__"></script>
 </body>
 </html>

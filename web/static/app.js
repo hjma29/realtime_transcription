@@ -153,7 +153,9 @@ async function startDictation() {
     });
 
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.audioWorklet.addModule("/static/worklet.js");
+    await audioCtx.audioWorklet.addModule(
+      `/static/worklet.js?v=${window.__ASSET_V || Date.now()}`
+    );
 
     const source = audioCtx.createMediaStreamSource(micStream);
     workletNode = new AudioWorkletNode(audioCtx, "pcm-downsampler", {

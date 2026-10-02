@@ -83,5 +83,5 @@ Ran successfully against a real transcribed physician referral letter (NCH
 Express Scribe medical dictation sample) via both live AirPods dictation and
 a converted WAV file, producing a correct final structured JSON note
 (chief complaint, HPI, exam findings, assessment, plan, and a plausible
-draft ICD-10 code) with live incremental updates that no longer flicker
+draft ICD-10-CM code) with live incremental updates that no longer flicker
 fields on/off between updates.

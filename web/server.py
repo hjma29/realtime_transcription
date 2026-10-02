@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import statistics
 import sys
@@ -37,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 # Reuse the exact ASR + structuring pipeline already proven out in
@@ -57,6 +58,12 @@ STATIC_DIR = WEB_DIR / "static"
 LOGS_DIR = WEB_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
+# Bump this whenever the demo's behaviour changes. It's rendered in the page
+# header next to a short build hash of the static assets, so during a live
+# demo (or mid-iteration) you can tell at a glance whether the browser is
+# actually running the current code or a stale cached copy.
+APP_VERSION = "1.2"
+
 
 class NoCacheStaticFiles(StaticFiles):
     """Plain StaticFiles lets browsers cache app.js/style.css indefinitely,
@@ -73,15 +80,38 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
+def asset_version() -> str:
+    """Short hash of the newest static-file mtime, injected into asset URLs.
+
+    The no-cache headers above only help for responses the browser fetches
+    *after* the header was added -- an entry Chrome already cached under the
+    bare "/static/app.js" URL (from before, when StaticFiles sent no
+    Cache-Control at all and Chrome applied heuristic freshness) keeps being
+    served from disk cache without revalidating. Versioning the URL itself
+    sidesteps that entirely: "/static/app.js?v=<hash>" is a URL the browser
+    has never seen before, so it must fetch it. Recomputed per request so
+    editing a file is picked up by the next plain reload, no restart needed.
+    """
+    newest = max(
+        (p.stat().st_mtime for p in STATIC_DIR.iterdir() if p.is_file()), default=0.0
+    )
+    return hashlib.sha1(f"{newest}".encode()).hexdigest()[:10]
+
+
 app = FastAPI()
 app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(
-        STATIC_DIR / "index.html",
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+async def index() -> HTMLResponse:
+    html = (
+        (STATIC_DIR / "index.html")
+        .read_text()
+        .replace("__ASSET_V__", asset_version())
+        .replace("__APP_VERSION__", APP_VERSION)
+    )
+    return HTMLResponse(
+        html, headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
     )
 
 

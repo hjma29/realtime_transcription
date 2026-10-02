@@ -8,7 +8,7 @@ incrementally-structured EHR-style note appear in real time.
 **Design pattern**: modeled after how real ambient clinical-scribe products
 (Nuance DAX / Microsoft Dragon Copilot, Abridge, Suki AI, Nabla, Ambience
 Healthcare) present drafts for sign-off — streaming ASR &rarr; LLM-structured
-SOAP-style note &rarr; draft ICD-10/CPT billing codes &rarr; mandatory
+SOAP-style note &rarr; draft ICD-10-CM/CPT billing codes &rarr; mandatory
 clinician review/attest &rarr; (simulated) FHIR write-back into the EHR
 chart. The note panel renders as labeled chart sections with a DRAFT badge
 and an "Attest & Send to EHR" button, not a raw JSON blob — this demo has no
@@ -45,7 +45,27 @@ notebook.
   `examples/measure_ttfs.py`.
 - **Segments** — count of finalized utterances so far.
 - **Last structuring** — latency of the most recent LLM call that turned
-  the growing transcript into the structured JSON note.
+  the growing transcript into the structured JSON note (end-to-end wall
+  clock, including network).
+- **LLM TTFT** — Time To First Token of that structuring call: how long
+  the model takes to start emitting output. The standard
+  inference-serving latency number.
+- **LLM TPS** — output tokens/sec sustained during generation (measured
+  excluding TTFT), i.e. decode throughput.
+
+## Version badge
+
+The page header shows e.g. `v1.2 · build 9c1f4a9d05`. The first part is
+`APP_VERSION` in `server.py`; the second is a hash of the static files'
+newest mtime, which is also appended to the `app.js` / `style.css` /
+`worklet.js` URLs as a `?v=` query param.
+
+This exists because browsers aggressively cache local static assets —
+during iteration it's easy to stare at a stale UI and think a fix didn't
+work. If you edit a file and the build hash in the header doesn't change
+after a plain reload, you're looking at a cached page. (Editing a static
+file changes the hash on the next reload; no server restart needed.
+Bump `APP_VERSION` for behaviour changes worth labelling.)
 
 ## Backup: marimo notebook
 
