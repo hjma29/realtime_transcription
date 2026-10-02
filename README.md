@@ -86,6 +86,9 @@ in the repo for reference:
   (JSON validity rate, mean/median/p95) over repeated runs.
 - **`examples/measure_ttfs.py`** — ASR-tier time-to-final-segment for a
   single model.
+- **[`vendor-comparison.md`](vendor-comparison.md)** — Together vs. Fireworks vs.
+  Baseten on ASR, pricing, dedicated GPUs, compliance and independent speed
+  data. Internal prep, not part of the deck.
 - **`examples/list_models.py`** — list ASR or LLM models with pricing, a live
   serverless probe, and v2/legacy dedicated status, as a table or `--json`:
   `python3 examples/list_models.py --kind asr` or `--kind llm --search llama`.
