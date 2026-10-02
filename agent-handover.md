@@ -196,14 +196,19 @@ session history for how a synthetic WAV was first created).
 - Earlier research (serverless vs. Dedicated Endpoint migration, verified
   live against Together's Dedicated Model Inference API) still stands and
   **has not been acted on in code**:
-  - **ASR tier** (`openai/whisper-large-v3`): confirmed **no dedicated
-    deployment path exists yet** on Together's DMI catalog — serverless
-    only, for any STT model (Whisper, Deepgram, Parakeet, Nemotron-ASR all
-    absent from the dedicated catalog as of this session).
+  - **ASR tier** (`openai/whisper-large-v3`): **dedicated-capable at
+    `1x_nvidia_h100_80gb_sxm`** — re-verified live against `GET
+    /v1/hardware` on 2026-10-01. The entire STT catalog (Whisper, Parakeet,
+    Nemotron-ASR, Deepgram Flux, Nova-3) deploys dedicated on a single
+    H100. An earlier note in this file claimed no dedicated STT path
+    existed; that was **wrong** and has been corrected here and in the
+    deck (slides 4 and 6).
   - **LLM/structuring tier**: `meta-llama/Llama-3.3-70B-Instruct-Turbo`
-    (current, serverless FP8) and `meta-llama/Llama-3.3-70B-Instruct`
-    (dedicated-only BF16) are **two different model IDs** — moving to
-    dedicated means a real model swap, not a deployment flag flip.
+    (current, serverless FP8) deploys dedicated on **2x/4x/8x H100**, and
+    `meta-llama/Llama-3.3-70B-Instruct` (BF16) on 4x/8x. Going dedicated is
+    therefore a **deployment change on the same model ID — not a model
+    swap**; the FP8 Turbo variant reserves at half the GPU footprint of
+    BF16. An earlier note claiming a model swap was required was wrong.
   - `openai/gpt-oss-120b`: 100% reliable but **13.2s mean / 30.6s p95
     structuring latency** — too slow for near-real-time, disqualified
     despite being Together's documented "Top Model" for structured outputs.
@@ -211,6 +216,26 @@ session history for how a synthetic WAV was first created).
     succeeded; the 2 failures were `RealtimeConnectionError: endpoint
     signaled no healthy workers`, an ASR-side transient independent of the
     structuring model, but still worth a clean re-test.
+  - **Gemma-4 / Qwen-3.5+ candidates evaluated and rejected (2026-10-01).**
+    A proposed shortlist of `google/gemma-4-31B-it`,
+    `Qwen/Qwen3.5-397B-A17B` and `Qwen/Qwen3.7-Plus` was tested live
+    against the real `ClinicalNote` schema. All three fail for this
+    use case:
+    - `google/gemma-4-31B-it` — dedicated-**only** (2x H100). Serverless
+      calls return `model_not_available`, so it cannot be A/B tested
+      without first paying for an endpoint.
+    - `Qwen/Qwen3.5-397B-A17B` — dedicated-**only**, 4x **B200**. Same
+      problem, larger bill.
+    - `Qwen/Qwen3.7-Plus` — **no dedicated config exists at all**
+      (`/v1/hardware` returns not_found), and it is streaming-only
+      (`streaming_required` on non-streamed calls). JSON schema does work
+      via streaming, but measured **37.7s mean** over 3 runs.
+    - Related serverless models also measured: `Qwen3.8-Flash` 48.0s,
+      `Qwen3.5-9B` 34.0s (2/3). These are reasoning models — billing-code
+      quality was comparable to Llama, but latency is 15-20x over budget
+      versus Llama-3.3-70B-Turbo's **2.3s** on the identical prompt.
+    - Takeaway: do not swap the structuring model on model-size reasoning
+      alone. Verify serverless availability + sync JSON + latency first.
   - **Current recommendation**: stay on `Llama-3.3-70B-Instruct-Turbo`;
     revisit `MiniMax-M3` after a clean re-test; treat `gpt-oss-120b` as
     disqualified on latency.
