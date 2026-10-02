@@ -133,6 +133,48 @@ dictation, not a toy prompt — schema complexity materially affects latency.
 
 ---
 
+## Evaluating dedicated on v2: Together's recommended workflow
+
+Per Together's dedicated-inference docs
+([overview](https://docs.together.ai/docs/dedicated-endpoints/overview),
+[concepts](https://docs.together.ai/docs/dedicated-endpoints/concepts),
+[pricing](https://docs.together.ai/docs/dedicated-endpoints/pricing)):
+
+1. **Prototype on serverless first.** Dedicated "uses the same inference APIs
+   as serverless models, so you can prototype on serverless, then deploy on DMI
+   without changing your application code" — only the `model` string changes
+   (to the endpoint string `<project_slug>/<endpoint_name>`).
+2. **Deploy on v2.** `tg beta endpoints deploy <model> --endpoint <name>`
+   creates the endpoint, attaches a deployment and routes traffic in one step.
+   Delete with `tg beta endpoints rm <id> --force`.
+3. **Compare candidates with Together's built-in tools** rather than
+   hand-rolled traffic splitting:
+   - **A/B tests** — split live traffic between a baseline (control) and one or
+     more candidates under one endpoint, with per-deployment metrics.
+   - **Shadow experiments** — mirror a sampled fraction of live traffic to
+     candidate deployments *without affecting the client response*, then compare
+     each target's latency, throughput, error rate and outputs against the
+     baseline. Together's example: "comparing fp8, fp4, and baseline builds on
+     the same prompts" — i.e. exactly the Turbo-FP8-vs-BF16 question above.
+4. **Mind the cost model.** v2 bills per ready replica per minute; stopped or
+   scaled-to-zero deployments cost nothing, provisioning/cold-start time isn't
+   billed. H100 is **$3.99/hr on v2** ($15.96/hr for the 4x config this model
+   needs), versus $5.40/hr per GPU on legacy v1.
+5. **For a production SLA without managing hardware**, Together points to
+   *provisioned throughput* via sales rather than self-managed dedicated.
+
+**v1 or v2?** v2. v1 is "still supported, but … will be deprecated by the end of
+2026," and creating or restarting v1 endpoints already returns
+`endpoints_v1_create_access_disabled`. Together's v2 launched **July 16,
+2026**. There is nothing to evaluate on v1.
+
+A shadow experiment is the natural way to answer this repo's open question —
+does BF16-on-dedicated produce the same billing codes as FP8-on-serverless? —
+because it replays real traffic against both without risking a user-visible
+change. It requires a deployed v2 endpoint, which has not been done.
+
+---
+
 ## Evaluated and rejected
 
 ### Gemma-4 / Qwen-3.5+ shortlist (2026-10-02)

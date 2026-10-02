@@ -50,27 +50,35 @@ all four serverless STT models.** Sources agree: the model catalog's
 Because the four models cost the same, price does not separate them — the
 choice is accuracy and latency.
 
-**Dedicated: $0.09 per minute of GPU time ($5.40/hour) for one H100**, from
-`GET /v1/hardware` (`cents_per_minute: 9`). **This is the legacy v1 catalog**,
-and the v2 catalog lists no STT models, so treat the figure as indicative of
-H100 pricing, not as a confirmed STT price. It is billed while the endpoint
-runs, whether or not it is busy. Cross-checked for linear scaling against the
-Llama configs (2x = 18, 4x = 36, 8x = 72).
+**Dedicated GPU pricing differs between v1 and v2, and v2 is cheaper.** Per
+Together's docs, one H100 costs **$3.99/hour on dedicated v2** (the current
+platform; [pricing](https://docs.together.ai/docs/dedicated-endpoints/pricing))
+versus **$5.40/hour on legacy v1**. Multi-GPU configs scale linearly (4x H100 =
+$15.96/hr on v2). v2 bills per ready replica per minute, and a deployment
+scaled to zero or stopped costs nothing — so a short evaluation costs only the
+minutes it runs. Provisioning and cold-start time are not billed.
+
+These are GPU prices, not STT prices: the v2 catalog lists no STT models (see
+[Dedicated endpoint readiness](#dedicated-endpoint-readiness)), so there is no
+confirmed way to buy dedicated ASR at all yet. The figures are what an H100
+would cost *if* it becomes available.
 
 ### Break-even
 
-`$5.40/hr ÷ $0.09 per audio-hour = 60`. A dedicated H100 only beats serverless
-at about **60 audio-hours transcribed per wall-clock hour** — roughly 60 live
-streams sustained around the clock. A clinic with morning-peak dictation sits
-far below that, so **on cost alone the ASR tier stays serverless for a long
-time.** Dedicated ASR is justified by a BAA/compliance requirement or by tail
-latency under load, not by price.
+`$3.99/hr ÷ $0.09 per audio-hour ≈ 44`. A dedicated H100 would only beat
+serverless at about **44 audio-hours transcribed per wall-clock hour** —
+roughly 44 live streams sustained around the clock (60 at the legacy $5.40
+rate). A clinic with morning-peak dictation sits far below that, so **on cost
+alone the ASR tier stays serverless for a long time.** Dedicated ASR would be
+justified by a BAA/compliance requirement or by tail latency under load, not by
+price.
 
 Caveats on that arithmetic:
 
-- It assumes one H100 can serve ~60 concurrent streams. **Not measured**, so
+- It assumes one H100 can serve ~44 concurrent streams. **Not measured**, so
   the true break-even is probably higher.
-- It ignores idle time, which only makes dedicated look worse.
+- v2's scale-to-zero billing narrows the idle-time penalty, but a deployment
+  that must stay warm for low latency still bills continuously.
 
 ### Pricing sources that disagree or mislead
 
@@ -126,6 +134,12 @@ likely source of confusion:
 2. **Python SDK v2** (GA **February 4, 2026**; release candidate December 12,
    2025) — the `pip install together` client this repo uses.
 3. **The `api-inference…/v2` server URL** above — declared, not working.
+
+**v1 vs. v2 for dedicated:** v1 is "still supported, but … will be deprecated by
+the end of 2026" (Together's v1 docs). Running v1 endpoints keep serving, but
+new ones can't be created, so **v2 is the only way to start a dedicated
+evaluation** — and it is cheaper ($3.99/hr per H100 vs. $5.40). Prefer v2; there
+is no reason to touch v1 for new work.
 
 **What a customer should use:** `https://api.together.ai/v1` for all inference
 calls (serverless or dedicated); the **v2** dedicated-endpoints API/CLI to
@@ -406,8 +420,9 @@ Any one of these settles it:
   deployable on dedicated model inference v2, and whether a dedicated STT
   endpoint serves the realtime WebSocket API.
 - Attempt `tg beta endpoints deploy` for `openai/whisper-large-v3` on v2. If
-  supported it creates a billed endpoint (≈ $0.09/min of GPU time), so only
-  with deliberate intent; if unsupported it should fail without cost.
+  supported it creates a billed endpoint (an H100 is ≈ $0.067/min on v2, and a
+  stopped deployment bills nothing), so only with deliberate intent; if
+  unsupported it should fail without cost.
 - Re-check `GET api.together.ai/v2/supported-models?search=whisper` periodically
   — it is free and will show the model the day it is added.
 
@@ -415,9 +430,8 @@ Any one of these settles it:
 
 - **The legacy catalog is not the current platform.** `/v1/hardware` and
   `/v1/models?dedicated=true` still answer, and look authoritative, but
-  reflect the pre-v2 catalog. Everything in the "Dedicated config" column of
-  the candidate table and the dedicated price in the Pricing section comes from
-  that legacy source.
+  reflect the pre-v2 catalog. The "Dedicated (legacy v1 catalog)" column of the
+  candidate table comes from that source.
 - **The GitHub skills repo is a drifted snapshot.** It uses Deepgram IDs
   `deepgram/deepgram-flux` and `deepgram/deepgram-nova-3`, while the live API
   uses `deepgram/flux`, `deepgram/nova-3-en` and `deepgram/nova-3-multi`. Its

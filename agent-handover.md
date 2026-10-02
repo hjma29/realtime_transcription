@@ -222,6 +222,12 @@ session history for how a synthetic WAV was first created).
     not 2x) and different numerics (FP8 -> BF16) needing a regression check.
     The legacy `/v1/hardware` catalog still lists Turbo on 2x/4x/8x H100 but
     is stale. Not confirmed by deployment. See `model-selection-llm.md`.
+  - **v1 vs v2 for dedicated**: prefer **v2**. v1 is "still supported, but will
+    be deprecated by the end of 2026" and new v1 endpoints can't be created
+    (`endpoints_v1_create_access_disabled`). v2 launched 2026-07-16, is cheaper
+    (H100 $3.99/hr vs $5.40), bills only ready replicas, and ships A/B tests and
+    shadow experiments, which is Together's recommended way to compare
+    candidates (e.g. FP8 vs BF16). See `model-selection-llm.md`.
   - **API hosts / "v2"**: use `https://api.together.ai/v1` for all inference.
     `api-inference.together.ai/v2` (listed in the OpenAPI server dropdown)
     404s. The real v2 is the dedicated-endpoints control plane at
