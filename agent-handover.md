@@ -195,7 +195,10 @@ session history for how a synthetic WAV was first created).
   before the panel. Backend is verified end-to-end via the WS harness.
 - Earlier research (serverless vs. Dedicated Endpoint migration, verified
   live against Together's Dedicated Model Inference API) still stands and
-  **has not been acted on in code**:
+  **has not been acted on in code**. This is now consolidated, with the
+  reproducible verification commands, in
+  [`model-selection-together.md`](model-selection-together.md) — prefer
+  that file as the source of truth; the notes below are the raw log:
   - **ASR tier** (`openai/whisper-large-v3`): **dedicated-capable at
     `1x_nvidia_h100_80gb_sxm`** — re-verified live against `GET
     /v1/hardware` on 2026-10-01. The entire STT catalog (Whisper, Parakeet,

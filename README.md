@@ -60,8 +60,11 @@ mid-thought or being ASR-corrected. Draft billing codes are always flagged
 before submission.
 
 See [`DEMO.md`](DEMO.md) for the exact commands to run in front of an
-audience, and [`ARCHITECTURE.md`](ARCHITECTURE.md) for the pipeline/design
-diagrams.
+audience, [`ARCHITECTURE.md`](ARCHITECTURE.md) for the pipeline/design
+diagrams, and
+[`model-selection-together.md`](model-selection-together.md) for why these
+two models were chosen, what was rejected, and how to verify a new
+candidate.
 
 ### Individual pieces (for reference / experimentation)
 
