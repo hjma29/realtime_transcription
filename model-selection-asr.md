@@ -429,8 +429,9 @@ number — not a list-price comparison — is what justifies reserved capacity.
 
 ## Dedicated endpoint readiness
 
-**Status: unresolved — two Together catalogs disagree, and the one that governs
-new deployments says no.**
+**Status: most likely *not* available for new dedicated deployments. Not
+confirmed by an actual deployment attempt.** Two Together catalogs disagree, and
+the one that governs new deployments says no.
 
 Since dedicated endpoints v2 launched (July 16, 2026), new dedicated
 deployments must be created on v2; v1 creation is disabled. So the question is
@@ -439,6 +440,7 @@ what the *v2* catalog contains.
 | Source                                                              | Whisper / Parakeet / Nemotron / Deepgram on dedicated?        |
 | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `GET api.together.ai/v2/supported-models` (current, 48 models)      | **Absent.** Only two `audio` entries, both TTS (Kokoro, Qwen3-TTS). `search=whisper` and `search=parakeet` return 0 |
+| `tg beta models configs openai/whisper-large-v3` (v2 deployable configs) | **0 configs.** Control: `meta-llama/Llama-3.3-70B-Instruct` returns 1. Without a config there is nothing to pass to a v2 deploy |
 | `GET /v1/hardware?model=<id>` (legacy)                              | ✅ `1x_nvidia_h100_80gb_sxm` for all seven                    |
 | `GET /v1/models?dedicated=true` (legacy, 194 models)                | ✅ all seven listed as `transcribe`                           |
 | Together's [speech-to-text docs](https://docs.together.ai/docs/speech-to-text) table | ✅ Whisper, Parakeet, Nemotron ×2; Deepgram ×3 dedicated-only |
@@ -446,13 +448,16 @@ what the *v2* catalog contains.
 
 The legacy v1 endpoints and the docs table say yes; the v2 catalog — the
 platform where new endpoints are actually created — says no. The simplest
-reading is that the v1 catalog and the docs table are stale and **STT is
-currently serverless-only for new deployments**, which would match the GitHub
+reading, now backed by the empty v2 config list, is that the v1 catalog and the
+docs table are stale and **STT is currently serverless-only for new
+deployments**, which would match the GitHub
 skills repo and the original claim in `agent-handover.md` that this file
-previously "corrected." That reading is plausible but **not confirmed**: nobody
+previously "corrected." That reading is strongly supported but **not confirmed**: nobody
 has attempted a v2 deployment of an STT model, and the v2 "supported models"
 list is described as Together-hosted base models with certified profiles, so
-absence may mean "no certified profile yet" rather than "impossible."
+absence may mean "no certified profile yet" rather than "impossible." The
+legacy v1 route (`/v1/hardware` still reports a 1x H100 for Whisper) cannot be
+used to create one: v1 endpoint creation is disabled.
 
 **Do not tell a customer that dedicated ASR is available** until Together
 confirms it or a v2 deployment succeeds. Serverless STT is solid and priced;
