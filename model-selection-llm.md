@@ -267,9 +267,23 @@ Billing-code quality was *comparable* across all of them — the Qwen models
 produced sensible ICD-10/CPT sets and correctly held `requires_human_review`
 true. They are simply reasoning models: **15–20x over the latency budget.**
 
+> **Correction (2026-10-02).** The latencies above were measured with the
+> models' default "thinking" mode on, and I never retried with it off. Together's
+> SDK has a switch (`reasoning: {"enabled": false}`); with it off,
+> `Qwen/Qwen3.5-9B` runs at about **2.5 s per call, 20/20 on the golden
+> dictation** (see [`eval/golden-dictation.md`](eval/golden-dictation.md)). The
+> "too slow" verdict was an artifact of one configuration, and it wrongly ruled
+> out a model that is now a lead candidate. The same applies to the 13.2 s
+> `gpt-oss-120b` figure in the table below, which also had thinking on (4.4 s per
+> call with it off). The shortlist's *availability* findings still stand:
+> `gemma-4-31B-it` and `Qwen3.5-397B-A17B` are dedicated-only, and
+> `Qwen3.7-Plus` and `Qwen3.8-Flash` have no v2 profile, so none passes the
+> serverless-and-dedicated rule regardless of speed.
+
 **Takeaway: do not swap the structuring model on parameter count or
 leaderboard position.** Check serverless availability, sync JSON, and measured
-latency first — in that order.
+latency first, in that order, **and test reasoning models with thinking both on
+and off before ruling them out.**
 
 ### Earlier candidates
 
