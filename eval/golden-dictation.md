@@ -148,6 +148,26 @@ not by cost. **Throughput was not measured**: whether one H100 can actually serv
 thousands of visits per hour is unknown, so the real break-even is at least this
 high.
 
+### Head-to-head: Qwen3.5-9B vs Llama-3.3-70B Turbo (5 fresh visits each)
+
+Run later the same evening (`results/llm-qwen-vs-llama-2026-10-02.json`), 45
+structuring calls per model, production prompt.
+
+| | `Qwen/Qwen3.5-9B` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
+| --- | --- | --- |
+| Valid JSON, facts /20, errors | 5/5, 20, 0 | 5/5, 20, 0 |
+| Latency per call: mean / p50 / p95 / max | 2.46 / 2.47 / 3.24 / 3.28 s | 2.46 / 2.40 / 3.32 / 4.08 s |
+| Billing codes /4 | 2.0 (lab CPT codes 80048 and 80061 missing) | **4.0** |
+| Serverless $/visit | **0.0014** | 0.0067 (4.8x more) |
+| Dedicated | 1x H100, **$5.49/hr** (BF16 or FP8) | **not in v2**; the BF16 `Llama-3.3-70B-Instruct` is a different model, 4x H100 = $21.96/hr, not measured |
+
+Qwen matched Turbo on speed and quality and cost a fifth as much per visit. Its
+tail was steady here (worst call 3.3 s in 45), so the 43 s outlier from the earlier
+test did not recur, though it is still unexplained. The one real gap is billing
+codes: Qwen does not add lab procedure codes unless prompted, which is a prompt
+issue to test, not necessarily a model limit. Turbo's own latency drifted from
+1.47 s/call earlier to 2.46 s here, so compare models only within the same run.
+
 ## Honest account of the earlier numbers
 
 Before this set existed, the model comparisons were weaker than they looked:

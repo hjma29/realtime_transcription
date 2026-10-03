@@ -398,9 +398,11 @@ Under the rule, two choices, depending on what matters:
   is its dedicated footprint: 4x B200 at **$35.96/hr**.
 - **Cheapest on both sides: `Qwen/Qwen3.5-9B`.** 20/20, zero errors, $0.0014/visit
   serverless, and a dedicated footprint of **1x H100 at $5.49/hr** (6.5x cheaper
-  than DeepSeek-V4.1-Flash). But 2.55 s/call is borderline against a 3 s budget,
-  and an earlier test showed a 43 s outlier. Needs more runs at different times of
-  day before it can be trusted.
+  than DeepSeek-V4.1-Flash). In a 5-visit head-to-head against Turbo it matched
+  Turbo on speed (2.46 s/call, p95 3.24 s) and quality (20/20) at one fifth of the
+  serverless cost; the 43 s outlier from an earlier test did not recur, but is
+  unexplained. It misses the lab billing codes (2/4 vs Turbo's 4/4), likely a
+  prompt matter to test. See `eval/golden-dictation.md`.
 
 Drop `GLM-5.3` (unreliable), `DeepSeek-V4-Pro` (slow and the most expensive
 footprint), `MiniMax-M3` (5.6 s/call) and `gpt-oss-120b` (4.4 s/call).
