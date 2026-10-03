@@ -315,25 +315,101 @@ all), see
 
 ---
 
+## Models that satisfy "serverless AND dedicated" (2026-10-02)
+
+If a model must be callable on serverless **and** deployable on the v2 dedicated
+platform, `meta-llama/Llama-3.3-70B-Instruct-Turbo` **fails**: it is serverless
+only, and the Llama 3.3 entry in v2 is a different model (the BF16
+`Llama-3.3-70B-Instruct`, which is dedicated only). No Llama has both. Neither
+do Gemma 4, Llama 3.1 8B, Llama 4 Scout/Maverick, or MiniMax M2.7: all are in the
+v2 picker but refuse serverless calls (`non-serverless model`).
+
+Of 172 chat models, **11** pass the rule: DeepSeek-V4-Flash-0731,
+DeepSeek-V4.1-Flash, DeepSeek-V4-Pro-0813, gpt-oss-120b, GLM-5.2, GLM-5.3,
+GLM-5.3-Flash, Qwen3.5-9B, MiniMax-M3, Muse-Glimmer-30B, Kimi-K3.
+
+### Benchmark on this repo's real `ClinicalNote` schema
+
+One 55-word dictation, `json_schema` output, temperature 0. Most of these are
+reasoning models, so they were run with `reasoning: {"enabled": false}`
+(Together SDK v2 parameter). Without it they took 5-25 s. Runs for different
+models were made in the same time window, because Turbo itself measured 2.3 s
+earlier in the day and 4.7-5.3 s later.
+
+| Model | Valid JSON | Mean latency | Max | Serverless $/1M in / out | v2 dedicated footprint |
+| --- | --- | --- | --- | --- | --- |
+| `zai-org/GLM-5.2` | 5/5 | **0.80 s** | 0.94 s | 1.40 / 4.40 | 4x B200 FP4 or 8x B200 NVFP4 |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | 5/5 | **1.17 s** | 1.71 s | 0.30 / 1.20 | 4x B200 FP8 |
+| `zai-org/GLM-5.3` | 5/5 | 1.37 s | 1.70 s | 1.40 / 4.40 | 8x B200 NVFP4 |
+| `Qwen/Qwen3.5-9B` | 5/5 | 14.3 s | **43 s** | 0.17 / 0.25 | 1x H100 BF16 or FP8 |
+| *Llama-3.3-70B-Turbo (fails the rule)* | 5/5 | 4.7 s | 5.2 s | 1.04 / 1.04 | **not in v2** |
+
+Earlier single pass (3 runs, reasoning off): MiniMax-M3 6.4 s, DeepSeek-V4-Pro
+5.6 s, DeepSeek-V4-Flash-0731 8.3 s, Kimi-K3 9.0 s, GLM-5.3-Flash 10.9 s (1 of 3
+invalid), Muse-Glimmer-30B 17.4 s. gpt-oss-120b measured 5.0 s with reasoning on.
+**Qwen3.5-9B** looked fast in the 3-run pass (2.5 s) and then averaged 14 s with a
+43 s worst case in the 5-run pass: do not trust a 3-run number.
+
+### Clinical correctness of the notes (read, not just scored)
+
+The dictation included two pertinent negatives ("no radiation to the left arm,
+no shortness of breath"), BP 148/92, aspirin 81 mg daily, and a two-week
+follow-up.
+
+- **Turbo's note omitted both negatives** and billed `I25.10 atherosclerotic
+  heart disease`, which the dictation does not support, while missing the
+  hypertension and diabetes codes.
+- **GLM-5.2, GLM-5.3, DeepSeek-V4.1-Flash and Qwen3.5-9B** all kept both
+  negatives ("denies radiation to the left arm and denies shortness of breath")
+  and every number. DeepSeek-V4.1-Flash and GLM-5.3 also produced the
+  hypertension, diabetes and ECG codes; GLM-5.2's code list varied between runs.
+
+This is one dictation, one prompt and five runs, so it shows direction, not a
+ranking. The billing-code check was a crude substring test.
+
+### Dedicated cost (list prices, Together v2: H100 $3.99/hr, B200 $8.99/hr)
+
+| Model | Dedicated footprint | $/hr |
+| --- | --- | --- |
+| `Llama-3.3-70B-Instruct` BF16 (a *different* model from Turbo) | 4x H100 | 15.96 |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | 4x B200 | **35.96** |
+| `zai-org/GLM-5.2` | 4x B200 FP4 | 35.96 |
+| `zai-org/GLM-5.3` | 8x B200 | 71.92 |
+
+The fast models need B200s, so a reserved endpoint costs roughly 2x the Llama
+BF16 option. Serverless input is cheaper, though (DeepSeek-V4.1-Flash $0.30 vs
+Turbo $1.04 per 1M), and this workload is input-heavy: every call resends the
+transcript and the previous note.
+
 ## Current recommendation
 
-Stay on `Llama-3.3-70B-Instruct-Turbo`. As of this evaluation it is the only
-candidate that satisfies all four requirements simultaneously:
+**Turbo cannot be the answer if "serverless and dedicated" is a hard
+requirement.** On that rule the lead candidate is
+**`deepseek-ai/DeepSeek-V4.1-Flash`** (about 1.2 s, valid JSON 5/5, kept the
+negatives, full code set, cheapest serverless input of the fast group), with
+**`zai-org/GLM-5.2`** as the fast backup (0.8 s, but less consistent codes).
 
-- serverless-testable (no spend to evaluate, and usable for burst overflow)
-- sync JSON schema (no call-path rewrite)
-- a dedicated path exists — via the BF16 sibling `Llama-3.3-70B-Instruct` at
-  4x H100, since the Turbo ID itself is not in the v2 catalog (so migration is
-  a model swap needing a regression check, not a `base_url` change)
-- **inside the latency budget** (2.3s vs. a 15-20x penalty elsewhere)
+Caveats before switching:
 
-The fourth is the one that actually eliminated every alternative tested so
-far. The first three are cheap to check and should be screened *first*, since
-they take minutes and latency benchmarking takes real time and tokens.
+- **Not yet validated beyond one dictation.** Run `examples/benchmark.py` style
+  checks on several real or realistic dictations before committing.
+- **`reasoning: {"enabled": false}` is required for these latencies.** The demo
+  and `examples/realtime_clinical_note.py` do not send it, and it has not been
+  confirmed to behave the same on a dedicated endpoint.
+- **A dedicated v2 endpoint has not been created for any of these.** The v2
+  catalog lists them; a deployment is what proves it.
+- **Model provenance.** DeepSeek, GLM, Qwen and MiniMax are developed by
+  Chinese labs. Some healthcare buyers have procurement policies about that,
+  independent of where Together hosts the weights. Ask Luminary Health early.
+- **Dedicated costs about 2x** the Llama BF16 footprint (above).
 
-Revisit `MiniMax-M3` after a clean re-test — it is the only model measured so
-far that was *faster* than the incumbent. Treat `gpt-oss-120b` and the
-Gemma-4/Qwen-3.5+ shortlist as closed.
+If the rule is relaxed to "dedicated-capable, with a different model ID on
+dedicated", Turbo remains usable on serverless with BF16 `Llama-3.3-70B-Instruct`
+(4x H100) as its dedicated counterpart, but the two are different numerics and
+would need a regression check.
+
+Treat `gpt-oss-120b` (5 s) as too slow, and the Gemma-4 / Qwen-3.5+ shortlist
+as closed (dedicated-only or too slow).
 
 For the speech-to-text recommendation, see
 [`model-selection-asr.md`](model-selection-asr.md).
