@@ -32,6 +32,7 @@ let captureStartMs = null; // wall-clock t=0 for transcript timestamps
 // ---- session clock + mic level wave ---------------------------------------
 const WAVE_BARS = 32;
 let analyser = null;
+let sessionModel = "";
 let waveRaf = null;
 let timerId = null;
 let recordStartMs = null;
@@ -51,6 +52,7 @@ function fmtStart(d) {
 
 function startClock() {
   recordStartMs = Date.now();
+  statusEl.classList.add("rec");
   sessionStartEl.textContent = fmtStart(new Date(recordStartMs));
   timerEl.textContent = "00:00";
   clearInterval(timerId);
@@ -61,6 +63,7 @@ function startClock() {
 
 function stopClock() {
   clearInterval(timerId); // leave the final length on screen
+  statusEl.classList.remove("rec");
   timerId = null;
 }
 
@@ -318,7 +321,8 @@ async function startDictation() {
     startClock();
     // Not connecting workletNode to destination -- we don't want to hear
     // our own mic echoed back through the speakers.
-    setStatus("listening…");
+    setStatus("Recording");
+    statusEl.title = sessionModel ? `ASR model: ${sessionModel}` : "";
   }
 
   ws.onmessage = (event) => {
@@ -331,7 +335,9 @@ async function startDictation() {
         });
         break;
       case "session_started":
-        setStatus(`session live (${msg.model})`);
+        sessionModel = msg.model;
+        statusEl.title = `ASR model: ${msg.model}`;
+        if (!statusEl.classList.contains("rec")) setStatus("session live");
         break;
       case "interim":
         showInterim(msg.text);

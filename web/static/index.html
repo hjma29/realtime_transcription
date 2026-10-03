@@ -3,25 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Realtime Clinical Dictation Demo</title>
+<title>Luminary Health Demo</title>
 <link rel="stylesheet" href="/static/style.css?v=__ASSET_V__" />
 </head>
 <body>
-  <header>
-    <h1>
-      Realtime Clinical Dictation Demo
-      <span class="app-version" id="appVersion" title="App version / static-asset build hash — if this doesn't change after an edit, you're on a cached copy">v__APP_VERSION__ · build __ASSET_V__</span>
-    </h1>
-    <p class="subtitle">
-      Mic &rarr; Together.AI streaming ASR (<code>whisper-large-v3</code>) &rarr;
-      incremental structured JSON note (<code>Llama-3.3-70B-Instruct-Turbo</code>)
-    </p>
-  </header>
-
   <main>
     <section class="controls">
-      <div class="session-title">New session</div>
+      <div class="session-id">
+      <div class="session-title">
+        Luminary Health Demo
+        <span class="app-version" id="appVersion" title="App version / static-asset build hash — if this doesn't change after an edit, you're on a cached copy">v__APP_VERSION__ · build __ASSET_V__</span>
+      </div>
       <div class="session-start" id="sessionStart">Not started</div>
+      </div>
       <div class="record-row">
         <button id="dictateBtn" class="dictate-btn">Start recording</button>
         <span id="timer" class="timer" title="Dictation length">00:00</span>

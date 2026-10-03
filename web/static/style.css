@@ -30,18 +30,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-header { padding: 28px 36px 4px; max-width: 1200px; margin: 0 auto; }
-
-h1 {
-  margin: 0 0 4px;
-  font-size: 1.5rem;
-  font-weight: 600;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 .app-version {
   font-size: 0.72rem;
   font-weight: 500;
@@ -53,15 +41,6 @@ h1 {
   cursor: help;
 }
 
-.subtitle { margin: 0; color: var(--dim); font-size: 0.92rem; }
-.subtitle code {
-  font-family: inherit;
-  color: var(--body);
-  background: #f3f4f6;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
 main { padding: 8px 36px 40px; max-width: 1200px; margin: 0 auto; }
 
 /* ---- session bar: title, start time, button, duration, mic wave ---- */
@@ -71,12 +50,17 @@ main { padding: 8px 36px 40px; max-width: 1200px; margin: 0 auto; }
   border-radius: 12px;
   padding: 16px 20px;
   margin: 18px 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 
-.session-title { font-size: 1.05rem; font-weight: 600; }
-.session-start { color: var(--dim); font-size: 0.9rem; margin-bottom: 12px; }
+.session-title { font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.session-start { color: var(--dim); font-size: 0.9rem; margin-top: 2px; }
 
-.record-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.record-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
 .dictate-btn {
   background: var(--accent);
@@ -111,9 +95,20 @@ main { padding: 8px 36px 40px; max-width: 1200px; margin: 0 auto; }
 }
 .mic-pill.live { color: var(--live); border-color: #bbf7d0; background: #f0fdf4; }
 .mic-pill svg { width: 16px; height: 16px; flex: none; }
-#wave { width: 132px; height: 26px; display: block; }
+#wave { width: 112px; height: 26px; display: block; }
 
 .status { color: var(--dim); font-size: 0.9rem; }
+.status.rec { color: var(--danger); font-weight: 600; }
+.status.rec::before {
+  content: "";
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: rec-blink 1.2s ease-in-out infinite;
+}
+@keyframes rec-blink { 50% { opacity: 0.25; } }
 
 /* ---- metrics ---- */
 .metrics {
@@ -277,5 +272,5 @@ main { padding: 8px 36px 40px; max-width: 1200px; margin: 0 auto; }
 @media (max-width: 900px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .panels { grid-template-columns: 1fr; }
-  header, main { padding-left: 18px; padding-right: 18px; }
+  main { padding-left: 18px; padding-right: 18px; }
 }
