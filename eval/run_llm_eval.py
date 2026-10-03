@@ -237,7 +237,7 @@ async def run_visit(client, model: str, steps: list[str], state: dict) -> dict:
         note.requires_human_review = True  # same guardrail as production
         prev = note
     return {"calls": per_call, "prompt_tokens": ptok, "completion_tokens": ctok, "note": prev.model_dump() if prev else None,
-            "error": err, "raw_review_flag": raw_review, "reasoning_flag_sent": state.get("flag", True) and model not in NO_REASONING_FLAG}
+            "error": err, "raw_review_flag": raw_review, "reasoning_flag_sent": state.get("flag", True) and model not in NO_REASONING_FLAG and not THINKING}
 
 
 async def evaluate(model: str, steps: list[str], tagged: str, runs: int, key: str) -> dict:

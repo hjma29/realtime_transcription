@@ -425,6 +425,10 @@ footprint), `MiniMax-M3` (5.6 s/call) and `gpt-oss-120b` (4.4 s/call).
 Reserve dedicated only if compliance or latency isolation requires it, and then
 the GPU footprint is the number that decides the model.
 
+**Thinking mode: leave it off.** On the golden dictation it added no quality
+(20/20 either way) and cost 14x the latency for Qwen3.5-9B (33.9 s vs 2.5 s per
+call) and 2.5x to 6x the price. See `eval/golden-dictation.md`.
+
 Caveats before switching the demo:
 
 - **One 47 s dictation, one speaker.** Run it on more and longer dictations.

@@ -1,0 +1,251 @@
+{
+ "date": "2026-10-02",
+ "steps": 9,
+ "runs": 2,
+ "summary": [
+  {
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+   "valid_runs": "2/2",
+   "dedicated": "4x B200 FP8",
+   "dedicated_usd_hr": 35.96,
+   "usd_per_1m_in": 0.3,
+   "usd_per_1m_out": 1.2,
+   "leak": false,
+   "call_latency_mean_s": 2.1190006643333215,
+   "call_latency_max_s": 5.957403665990569,
+   "visit_latency_s": 19.071005978999892,
+   "prompt_tokens": 5089,
+   "completion_tokens": 6786.5,
+   "usd_per_visit": 0.0096705,
+   "facts": 20,
+   "facts_total": 20,
+   "errors": [],
+   "codes": 3.5,
+   "codes_total": 4,
+   "facts_failed": [],
+   "codes_missing": [
+    "CPT 80048 BMP"
+   ],
+   "breakeven_visits_per_hr": 3718.525412336487,
+   "raw_review_flag_ok": true,
+   "reasoning_flag_sent": false
+  },
+  {
+   "model": "Qwen/Qwen3.5-9B",
+   "valid_runs": "2/2",
+   "dedicated": "1x H100 BF16",
+   "dedicated_usd_hr": 5.49,
+   "usd_per_1m_in": 0.17,
+   "usd_per_1m_out": 0.25,
+   "leak": false,
+   "call_latency_mean_s": 33.86000240504897,
+   "call_latency_max_s": 48.812928291008575,
+   "visit_latency_s": 304.7400216454407,
+   "prompt_tokens": 5099.5,
+   "completion_tokens": 31839,
+   "usd_per_visit": 0.008826665000000001,
+   "facts": 20,
+   "facts_total": 20,
+   "errors": [],
+   "codes": 2,
+   "codes_total": 4,
+   "facts_failed": [],
+   "codes_missing": [
+    "CPT 80048 BMP",
+    "CPT 80061 lipid panel"
+   ],
+   "breakeven_visits_per_hr": 621.9789694069051,
+   "raw_review_flag_ok": true,
+   "reasoning_flag_sent": false
+  }
+ ],
+ "raw": [
+  {
+   "model": "Qwen/Qwen3.5-9B",
+   "runs": [
+    {
+     "calls": [
+      26.013496291998308,
+      40.811779708979884,
+      24.052623499999754,
+      46.67728974999045,
+      25.75215325001045,
+      23.766570790990954,
+      34.0002481249976,
+      35.670860749989515,
+      38.81595766599639
+     ],
+     "prompt_tokens": 5126,
+     "completion_tokens": 31747,
+     "note": {
+      "chief_complaint": "Follow-up of hypertension and elevated cholesterol",
+      "history_of_present_illness": "Patient is a 52-year-old male presenting for follow-up of hypertension and elevated cholesterol. He has been taking his blood pressure medication regularly. Denies chest pain or shortness of breath.",
+      "exam_findings": [
+       "Blood pressure: 138/86",
+       "Weight: stable",
+       "Well appearing and in no acute distress",
+       "Heart: regular rate and rhythm, no murmurs",
+       "Lungs: clear bilaterally"
+      ],
+      "assessment": "Hypertension, Hyperlipidemia",
+      "plan": "Continue lisinopril 10 milligrams and atorvastatin 20 milligrams daily. Repeat basic metabolic panel and lipid panel before next visit.",
+      "draft_billing_codes": [
+       "ICD-10-CM I10 - Hypertension, essential",
+       "ICD-10-CM E78.5 - Hyperlipidemia, unspecified",
+       "CPT 99213 - Office visit, established patient, low complexity"
+      ],
+      "requires_human_review": true
+     },
+     "error": "",
+     "raw_review_flag": true,
+     "reasoning_flag_sent": false
+    },
+    {
+     "calls": [
+      34.68425691698212,
+      38.638912374997744,
+      38.14358491697931,
+      26.26251025000238,
+      33.05608762498014,
+      48.812928291008575,
+      36.05879095799173,
+      23.04561637499137,
+      35.21637574999477
+     ],
+     "prompt_tokens": 5073,
+     "completion_tokens": 31931,
+     "note": {
+      "chief_complaint": "Follow-up of hypertension and elevated cholesterol",
+      "history_of_present_illness": "Patient is a 52-year-old male for follow-up of hypertension and elevated cholesterol. He has been taking his blood pressure medication regularly. Denies chest pain and shortness of breath.",
+      "exam_findings": [
+       "Blood pressure 138/86",
+       "Weight stable",
+       "Well appearing",
+       "No acute distress",
+       "Heart regular rate and rhythm, no murmurs",
+       "Lungs are clear bilaterally"
+      ],
+      "assessment": "Hypertension, Hyperlipidemia",
+      "plan": "Continue lisinopril 10 milligrams and atorvastatin 20 milligrams daily. Repeat basic metabolic panel and lipid panel before next visit.",
+      "draft_billing_codes": [
+       "ICD-10-CM I10 - Hypertension, essential",
+       "ICD-10-CM E78.5 - Hyperlipidemia, unspecified",
+       "CPT 99213 - Office visit, established patient, low complexity"
+      ],
+      "requires_human_review": true
+     },
+     "error": "",
+     "raw_review_flag": true,
+     "reasoning_flag_sent": false
+    }
+   ],
+   "leak": false
+  },
+  {
+   "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+   "runs": [
+    {
+     "calls": [
+      4.497406875016168,
+      0.9678551250253804,
+      1.1413914580189157,
+      1.5971981670008972,
+      1.5460954589943867,
+      1.4030649999913294,
+      1.5588260410004295,
+      1.9865693749743514,
+      1.4390504999901168
+     ],
+     "prompt_tokens": 5055,
+     "completion_tokens": 5983,
+     "note": {
+      "chief_complaint": "Follow-up of hypertension and elevated cholesterol",
+      "history_of_present_illness": "52-year-old male presenting for follow-up of hypertension and elevated cholesterol. He has been taking his blood pressure medication regularly. Denies chest pain and shortness of breath.",
+      "exam_findings": [
+       "Blood pressure in office today: 138/86",
+       "Weight stable",
+       "Well appearing and in no acute distress",
+       "Heart is regular rate and rhythm, no murmurs",
+       "Lungs are clear bilaterally"
+      ],
+      "assessment": "Hypertension, hyperlipidemia",
+      "plan": "Continue lisinopril 10 mg daily and atorvastatin 20 mg daily. Repeat basic metabolic panel and lipid panel before next visit.",
+      "draft_billing_codes": [
+       "ICD-10-CM I10 - Essential (primary) hypertension",
+       "ICD-10-CM E78.5 - Hyperlipidemia, unspecified",
+       "CPT 99213 - Office/outpatient visit, established patient, low complexity",
+       "CPT 80053 - Comprehensive metabolic panel",
+       "CPT 80061 - Lipid panel"
+      ],
+      "requires_human_review": true
+     },
+     "error": "",
+     "raw_review_flag": true,
+     "reasoning_flag_sent": false
+    },
+    {
+     "calls": [
+      5.957403665990569,
+      1.0368864589836448,
+      1.8753381659917068,
+      1.1740071250242181,
+      1.532348542008549,
+      1.7086619999899995,
+      4.7189885409898125,
+      1.3988954170199577,
+      2.6020240419893526
+     ],
+     "prompt_tokens": 5123,
+     "completion_tokens": 7590,
+     "note": {
+      "chief_complaint": "Follow-up of hypertension and elevated cholesterol",
+      "history_of_present_illness": "52-year-old male presents for follow-up of hypertension and elevated cholesterol. He has been taking his blood pressure medication regularly. Denies chest pain and shortness of breath.",
+      "exam_findings": [
+       "Blood pressure in office today: 138/86 mmHg",
+       "Weight stable",
+       "Well appearing and in no acute distress",
+       "Heart: regular rate and rhythm, no murmurs",
+       "Lungs are clear bilaterally"
+      ],
+      "assessment": "Hypertension and hyperlipidemia.",
+      "plan": "Continue lisinopril 10 mg daily and atorvastatin 20 mg daily. Discussed medication adherence and ongoing management. Will repeat basic metabolic panel and lipid panel before next visit.",
+      "draft_billing_codes": [
+       "ICD-10-CM I10 - Essential (primary) hypertension",
+       "ICD-10-CM E78.5 - Hyperlipidemia, unspecified",
+       "CPT 99213 - Office/outpatient visit, established patient, low complexity",
+       "CPT 80048 - Basic metabolic panel",
+       "CPT 80061 - Lipid panel"
+      ],
+      "requires_human_review": true
+     },
+     "error": "",
+     "raw_review_flag": true,
+     "reasoning_flag_sent": false
+    }
+   ],
+   "leak": false
+  }
+ ],
+ "gpu_prices_usd_hr": {
+  "h100-80gbx1": 5.49,
+  "h100-80gbx2": 10.98,
+  "h100-80gbx4": 21.96,
+  "h100-80gbx8": 43.92,
+  "b200-180gbx1": 8.99,
+  "b200-180gbx2": 17.98,
+  "b200-180gbx4": 35.96,
+  "b200-180gbx8": 71.92,
+  "gb300-280gbx1": 12.0,
+  "gb300-280gbx2": 24.0,
+  "gb300-280gbx4": 48.0,
+  "h200-140gbx1": 6.65,
+  "h200-140gbx2": 13.3,
+  "h200-140gbx4": 26.6,
+  "h200-140gbx8": 53.2,
+  "b300-280gbx1": 11.99,
+  "b300-280gbx2": 23.98,
+  "b300-280gbx4": 47.96,
+  "b300-280gbx8": 95.92
+ },
+ "note": "Run with --thinking: models left in default thinking mode; the reasoning switch was NOT sent. reasoning_flag_sent corrected to false after a reporting bug."
+}

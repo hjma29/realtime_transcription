@@ -148,6 +148,28 @@ not by cost. **Throughput was not measured**: whether one H100 can actually serv
 thousands of visits per hour is unknown, so the real break-even is at least this
 high.
 
+### Thinking mode: on versus off
+
+Same golden dictation and pipeline, 2 visits each with the models left in their
+default thinking mode (`--thinking`; `results/llm-thinking-on-2026-10-02.json`),
+compared with thinking off from the runs above.
+
+| Model | Thinking | Facts /20 | Codes /4 | Mean s/call | Max s | Serverless $/visit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Qwen/Qwen3.5-9B` | **off** | 20 | 2.0 | **2.46** | 3.3 | **0.0014** |
+| `Qwen/Qwen3.5-9B` | on | 20 | 2.0 | 33.86 | 48.8 | 0.0088 (6.3x) |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | **off** | 20 | 3.0 | **0.49** | 0.8 | **0.0038** |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | on | 20 | 3.5 | 2.12 | 6.0 | 0.0097 (2.5x) |
+
+Thinking bought **no measurable quality**: both models were already at 20/20, and
+the billing-code difference (3.0 vs 3.5) is within noise on 2 visits. It cost 14x
+the latency for Qwen (4x for DeepSeek) and 2.5x to 6x the price, because thinking
+tokens are billed as output. Structuring a dictation into a schema is extraction,
+not multi-step reasoning, which is why this is expected. **Limit:** one fairly
+straightforward dictation. A long, ambiguous or conflicting dictation might benefit;
+that is untested. If billing-code reasoning is ever worth the delay, do it as a
+separate asynchronous review step, not in the live path.
+
 ### Head-to-head: Qwen3.5-9B vs Llama-3.3-70B Turbo (5 fresh visits each)
 
 Run later the same evening (`results/llm-qwen-vs-llama-2026-10-02.json`), 45
