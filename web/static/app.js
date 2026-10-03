@@ -127,7 +127,7 @@ function setStatus(text) {
 }
 
 function resetUi() {
-  transcriptEl.innerHTML = '<span class="placeholder">Press "Start recording" and speak…</span>';
+  transcriptEl.innerHTML = '<span class="placeholder">Press Start and speak…</span>';
   noteChartEl.innerHTML = '<p class="placeholder">Structured note will populate here as you dictate…</p>';
   draftBadgeEl.textContent = "DRAFT — Pending Review";
   attestBtn.disabled = true;
@@ -280,7 +280,7 @@ async function startDictation() {
   ws.onopen = () => {
     opened = true;
     setStatus("warming up ASR session…");
-    dictateBtn.textContent = "End recording";
+    dictateBtn.textContent = "Stop";
     dictateBtn.classList.add("recording");
     recording = true;
     // Mic capture starts only once the server confirms (via a "ready"
@@ -393,7 +393,7 @@ async function startDictation() {
 
 function stopDictation(alreadyClosed, finalStatus) {
   recording = false;
-  dictateBtn.textContent = "Start recording";
+  dictateBtn.textContent = "Start";
   dictateBtn.classList.remove("recording");
   setStatus(finalStatus || "finalizing…");
 
