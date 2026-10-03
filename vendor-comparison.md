@@ -42,7 +42,7 @@ independent leaderboard (Artificial Analysis). Companion to
 | **Managed per-minute ASR API** | ✅ 4 serverless models, **$0.0015 / audio min** | ❌ None found. ASR is **deployed by you** from a model library on dedicated GPUs | ❓ **Unverified.** No ASR page in current docs index, none on pricing page |
 | Models | Whisper-large-v3, Parakeet-TDT-0.6B-v3, Nemotron-3 and 3.5 ASR streaming | Whisper, **Qwen3-ASR 1.7B** (batch + real-time), MOSS-Transcribe-Diarize, VibeVoice-ASR, Voxtral | — |
 | Streaming | WebSocket (realtime API) | WebSocket, model-specific protocols | — |
-| Diarization | Whisper, Parakeet (per Together's skills repo) | Dedicated models + Whisper pipeline | — |
+| Diarization | Whisper, Parakeet: **verified**, batch endpoint only (not in the realtime SDK) | Dedicated models + Whisper pipeline | — |
 | Billing | Per audio minute (serverless) | Per GPU-minute while replicas run | — |
 | Dedicated | Not in the current v2 catalog (see ASR doc) | This **is** the model | — |
 

@@ -41,6 +41,52 @@ benchmarked, so they are absent from the measured results below.
 
 ---
 
+## Cross-check: Together's own STT reference
+
+[`togethercomputer/skills` → `stt-models.md`](https://github.com/togethercomputer/skills/blob/main/skills/together-audio/references/stt-models.md)
+(last changed 2026-08-07; catalog last synced 2026-06-06, before dedicated v2
+launched). Each claim below was tested against the live API on 2026-10-02.
+
+### Where it is stale or incomplete
+
+| In the reference | Live result | Verdict |
+| --- | --- | --- |
+| Deepgram IDs `deepgram/deepgram-flux`, `deepgram-nova-3`, `deepgram-nova-3-multilingual` | Return *"Unable to access model"* (unknown ID). The live IDs `deepgram/flux`, `nova-3-en`, `nova-3-multi` return *"Unable to access **non-serverless** model"* | **Wrong IDs** |
+| Supported formats: wav, mp3, m4a, webm, flac | All of wav, mp3, m4a, flac, webm **and ogg, opus, aac** transcribed correctly on Whisper | **Incomplete** (Together's docs page lists all eight) |
+| Access column: single value per model | Coarse; says nothing about v2 dedicated (see [readiness](#dedicated-endpoint-readiness)) | **Stale** |
+| Nemotron "Streaming transcription" | Correct, but batch calls are *rejected* (`This model only supports WebSocket streaming`), which the reference never says | **Missing caveat** |
+| Parakeet "Realtime, diarization" | Realtime works; **batch** also works, with diarization and word timestamps | Correct, understated |
+
+Everything else checked out: the 80 MB / 1 GB / 4 h limits match Together's
+docs page, and Whisper and Parakeet both accept `diarize=true`.
+
+### What it adds that matters for a clinical product
+
+- **Diarization works, but only on the batch endpoint.** On a two-voice clip
+  (clinician question, patient answer) Whisper and Parakeet both returned two
+  correctly attributed speakers (`SPEAKER_00` / `SPEAKER_01`) via
+  `response_format=verbose_json`, `diarize=true`. The SDK's realtime path has
+  **no diarization option**. For *dictation* (one speaker, this demo) that is
+  irrelevant; for an *ambient* doctor-and-patient scribe it means speaker
+  labels would come from a batch pass or a second step, not the live stream.
+  Tested on one synthetic clip with two TTS voices; real overlapping speech is
+  untested.
+- **Word timestamps differ in quality.** Both return them
+  (`timestamp_granularities=word`). On a 12-word clip Whisper had 0
+  zero-length words; **Parakeet had 3 of 12** (start equals end) and its times
+  snap to 80 ms steps. Fine for captions, risky if you align words to audio for
+  audit or playback.
+- **Realtime audio formats are 8, 16 or 24 kHz.** `pcm_s16le_8000` exists, which
+  matters for telephony-sourced audio.
+- **`pcm_s16le` is ambiguous.** In ffmpeg it is a codec name (sample rate set
+  separately). In Together's realtime API the **bare string `pcm_s16le` means
+  24 kHz**; the 16 kHz format is the explicit `pcm_s16le_16000`. The SDK defaults
+  to the explicit one, so this repo is safe, but a hand-rolled WebSocket client
+  that sends 16 kHz audio under the bare name would be played back at the wrong
+  speed.
+- **Interim results replace each other.** Each realtime `delta` can replace the
+  previous one; only `completed` is final. The demo's interim line relies on this.
+
 ## Pricing
 
 **Serverless: $0.0015 per audio minute ($0.09 per audio hour), identical for
