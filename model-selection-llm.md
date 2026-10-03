@@ -212,8 +212,9 @@ Per Together's dedicated-inference docs
      the same prompts" — i.e. exactly the Turbo-FP8-vs-BF16 question above.
 4. **Mind the cost model.** v2 bills per ready replica per minute; stopped or
    scaled-to-zero deployments cost nothing, provisioning/cold-start time isn't
-   billed. H100 is **$3.99/hr on v2** ($15.96/hr for the 4x config this model
-   needs), versus $5.40/hr per GPU on legacy v1.
+   billed. H100 is **$5.49/hr on v2** ($21.96/hr for the 4x config the BF16
+   Llama needs; Together's docs page says $3.99, which the pricing API does not
+   reproduce), versus $5.40/hr per GPU on legacy v1.
 5. **For a production SLA without managing hardware**, Together points to
    *provisioned throughput* via sales rather than self-managed dedicated.
 
@@ -328,88 +329,97 @@ Of 172 chat models, **11** pass the rule: DeepSeek-V4-Flash-0731,
 DeepSeek-V4.1-Flash, DeepSeek-V4-Pro-0813, gpt-oss-120b, GLM-5.2, GLM-5.3,
 GLM-5.3-Flash, Qwen3.5-9B, MiniMax-M3, Muse-Glimmer-30B, Kimi-K3.
 
-### Benchmark on this repo's real `ClinicalNote` schema
+### Evaluation on the golden dictation (supersedes the first sweep)
 
-One 55-word dictation, `json_schema` output, temperature 0. Most of these are
-reasoning models, so they were run with `reasoning: {"enabled": false}`
-(Together SDK v2 parameter). Without it they took 5-25 s. Runs for different
-models were made in the same time window, because Turbo itself measured 2.3 s
-earlier in the day and 4.7-5.3 s later.
+The full method, rubric, raw results and limits are in
+[`eval/golden-dictation.md`](eval/golden-dictation.md). In short: the real
+production prompt, the incremental pipeline replayed (9 calls per visit on a 47 s
+dictation), 3 visits per model, a 20-check rubric plus error flags and expected
+billing codes, with token cost and dedicated GPU cost from Together's own pricing.
 
-| Model | Valid JSON | Mean latency | Max | Serverless $/1M in / out | v2 dedicated footprint |
+An earlier sweep in this file used a shorter prompt I had written and a
+different dictation. It is **superseded**, and one conclusion from it is
+**retracted**: that Turbo "dropped the pertinent negatives". With the production
+prompt on the golden dictation Turbo scores 20/20, keeps every negative, and has
+the best billing-code coverage.
+
+| Model | Facts /20 | Codes /4 | Mean s/call | Max s | Serverless $/visit | Dedicated footprint | $/hr |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | 20 | 3.0 | **0.49** | 0.8 | 0.0038 | 4x B200 FP8 | 35.96 |
+| `zai-org/GLM-5.2` | 20 | 2.0 | 0.74 | 1.1 | 0.0162 | 4x B200 FP4 | 35.96 |
+| *`Llama-3.3-70B-Turbo` (fails the rule)* | 20 | **4.0** | 1.47 | 2.3 | 0.0067 | **not in v2** | n/a |
+| `Qwen/Qwen3.5-9B` | 20 | 2.0 | 2.55 | 3.2 | **0.0014** | **1x H100 BF16** | **5.49** |
+| `deepseek-ai/DeepSeek-V4-Pro-0813` | 20 | 2.7 | 4.91 | 8.7 | 0.0123 | 8x B200 NVFP4 | 71.92 |
+| `MiniMaxAI/MiniMax-M3` | 20 | 3.0 | 5.60 | 9.1 | 0.0048 | 4x B200 FP8 | 35.96 |
+| `openai/gpt-oss-120b` | 19.7 | 3.3 | 4.41 | 9.2 | 0.0041 | 2x H100 MXFP4 | 10.98 |
+| `zai-org/GLM-5.3` | **14.7** | 2.0 | 2.04 | **38.6** | 0.0130 | 8x B200 NVFP4 | 71.92 |
+
+- **Quality does not separate most models.** Six of eight scored 20/20 with zero
+  errors; none leaked the cough annotation; every raw output set
+  `requires_human_review` true.
+- **GLM-5.3 is unreliable**: two of three final notes had an empty assessment, and
+  one call took 38.6 s.
+- **Tail latency is unstable over time.** Qwen3.5-9B measured 14 s average and 43 s
+  worst case in an earlier test, and 2.55 s here.
+- The fast models need B200s; the cheapest *dedicated* footprint is Qwen3.5-9B on
+  one H100, a 6.5x lower hourly cost than DeepSeek-V4.1-Flash on four B200s.
+
+### Dedicated versus serverless economics
+
+H100 $5.49/hr and B200 $8.99/hr per GPU (pricing API). "Visit" = the 47 s golden
+dictation. Dedicated bills continuously; serverless bills per token.
+
+| Model | Serverless $/visit | Dedicated $/hr | Dedicated $/visit at 100 visits/hr | at 1,000 visits/hr | Break-even visits/hr |
 | --- | --- | --- | --- | --- | --- |
-| `zai-org/GLM-5.2` | 5/5 | **0.80 s** | 0.94 s | 1.40 / 4.40 | 4x B200 FP4 or 8x B200 NVFP4 |
-| `deepseek-ai/DeepSeek-V4.1-Flash` | 5/5 | **1.17 s** | 1.71 s | 0.30 / 1.20 | 4x B200 FP8 |
-| `zai-org/GLM-5.3` | 5/5 | 1.37 s | 1.70 s | 1.40 / 4.40 | 8x B200 NVFP4 |
-| `Qwen/Qwen3.5-9B` | 5/5 | 14.3 s | **43 s** | 0.17 / 0.25 | 1x H100 BF16 or FP8 |
-| *Llama-3.3-70B-Turbo (fails the rule)* | 5/5 | 4.7 s | 5.2 s | 1.04 / 1.04 | **not in v2** |
+| `Qwen/Qwen3.5-9B` | 0.0014 | 5.49 | 0.055 | 0.0055 | ~3,960 |
+| `openai/gpt-oss-120b` | 0.0041 | 10.98 | 0.110 | 0.011 | ~2,710 |
+| `deepseek-ai/DeepSeek-V4.1-Flash` | 0.0038 | 35.96 | 0.360 | 0.036 | ~9,440 |
+| `MiniMaxAI/MiniMax-M3` | 0.0048 | 35.96 | 0.360 | 0.036 | ~7,550 |
+| `zai-org/GLM-5.2` | 0.0162 | 35.96 | 0.360 | 0.036 | ~2,220 |
+| `Llama-3.3-70B-Instruct` BF16 (*different model from Turbo*) | n/a | 4x H100 = 21.96 | | | n/a |
 
-Earlier single pass (3 runs, reasoning off): MiniMax-M3 6.4 s, DeepSeek-V4-Pro
-5.6 s, DeepSeek-V4-Flash-0731 8.3 s, Kimi-K3 9.0 s, GLM-5.3-Flash 10.9 s (1 of 3
-invalid), Muse-Glimmer-30B 17.4 s. gpt-oss-120b measured 5.0 s with reasoning on.
-**Qwen3.5-9B** looked fast in the 3-run pass (2.5 s) and then averaged 14 s with a
-43 s worst case in the 5-run pass: do not trust a 3-run number.
-
-### Clinical correctness of the notes (read, not just scored)
-
-The dictation included two pertinent negatives ("no radiation to the left arm,
-no shortness of breath"), BP 148/92, aspirin 81 mg daily, and a two-week
-follow-up.
-
-- **Turbo's note omitted both negatives** and billed `I25.10 atherosclerotic
-  heart disease`, which the dictation does not support, while missing the
-  hypertension and diabetes codes.
-- **GLM-5.2, GLM-5.3, DeepSeek-V4.1-Flash and Qwen3.5-9B** all kept both
-  negatives ("denies radiation to the left arm and denies shortness of breath")
-  and every number. DeepSeek-V4.1-Flash and GLM-5.3 also produced the
-  hypertension, diabetes and ECG codes; GLM-5.2's code list varied between runs.
-
-This is one dictation, one prompt and five runs, so it shows direction, not a
-ranking. The billing-code check was a crude substring test.
-
-### Dedicated cost (list prices, Together v2: H100 $3.99/hr, B200 $8.99/hr)
-
-| Model | Dedicated footprint | $/hr |
-| --- | --- | --- |
-| `Llama-3.3-70B-Instruct` BF16 (a *different* model from Turbo) | 4x H100 | 15.96 |
-| `deepseek-ai/DeepSeek-V4.1-Flash` | 4x B200 | **35.96** |
-| `zai-org/GLM-5.2` | 4x B200 FP4 | 35.96 |
-| `zai-org/GLM-5.3` | 8x B200 | 71.92 |
-
-The fast models need B200s, so a reserved endpoint costs roughly 2x the Llama
-BF16 option. Serverless input is cheaper, though (DeepSeek-V4.1-Flash $0.30 vs
-Turbo $1.04 per 1M), and this workload is input-heavy: every call resends the
-transcript and the previous note.
+At any plausible clinic volume (tens to a few hundred visits per hour) serverless
+is **22x to 94x cheaper** than a reserved config. Dedicated is a compliance or
+isolation purchase, not a cost saving. **Throughput per GPU was not measured**, so
+the real break-even is at least the figures above. Tokens grow with dictation
+length because the transcript is resent on every call.
 
 ## Current recommendation
 
 **Turbo cannot be the answer if "serverless and dedicated" is a hard
-requirement.** On that rule the lead candidate is
-**`deepseek-ai/DeepSeek-V4.1-Flash`** (about 1.2 s, valid JSON 5/5, kept the
-negatives, full code set, cheapest serverless input of the fast group), with
-**`zai-org/GLM-5.2`** as the fast backup (0.8 s, but less consistent codes).
+requirement**: it is serverless-only, and the v2 Llama 3.3 entry is a different,
+dedicated-only model. On quality alone it is fine (20/20, best codes), so if the
+rule is ever relaxed, Turbo on serverless remains a good model.
 
-Caveats before switching:
+Under the rule, two choices, depending on what matters:
 
-- **Not yet validated beyond one dictation.** Run `examples/benchmark.py` style
-  checks on several real or realistic dictations before committing.
-- **`reasoning: {"enabled": false}` is required for these latencies.** The demo
-  and `examples/realtime_clinical_note.py` do not send it, and it has not been
-  confirmed to behave the same on a dedicated endpoint.
-- **A dedicated v2 endpoint has not been created for any of these.** The v2
-  catalog lists them; a deployment is what proves it.
-- **Model provenance.** DeepSeek, GLM, Qwen and MiniMax are developed by
-  Chinese labs. Some healthcare buyers have procurement policies about that,
-  independent of where Together hosts the weights. Ask Luminary Health early.
-- **Dedicated costs about 2x** the Llama BF16 footprint (above).
+- **Performance: `deepseek-ai/DeepSeek-V4.1-Flash`.** Fastest by far (0.49 s/call,
+  worst 0.8 s), 20/20, zero errors, low serverless cost ($0.0038/visit). The price
+  is its dedicated footprint: 4x B200 at **$35.96/hr**.
+- **Cheapest on both sides: `Qwen/Qwen3.5-9B`.** 20/20, zero errors, $0.0014/visit
+  serverless, and a dedicated footprint of **1x H100 at $5.49/hr** (6.5x cheaper
+  than DeepSeek-V4.1-Flash). But 2.55 s/call is borderline against a 3 s budget,
+  and an earlier test showed a 43 s outlier. Needs more runs at different times of
+  day before it can be trusted.
 
-If the rule is relaxed to "dedicated-capable, with a different model ID on
-dedicated", Turbo remains usable on serverless with BF16 `Llama-3.3-70B-Instruct`
-(4x H100) as its dedicated counterpart, but the two are different numerics and
-would need a regression check.
+Drop `GLM-5.3` (unreliable), `DeepSeek-V4-Pro` (slow and the most expensive
+footprint), `MiniMax-M3` (5.6 s/call) and `gpt-oss-120b` (4.4 s/call).
 
-Treat `gpt-oss-120b` (5 s) as too slow, and the Gemma-4 / Qwen-3.5+ shortlist
-as closed (dedicated-only or too slow).
+**Start on serverless either way**; it is dramatically cheaper at realistic volume.
+Reserve dedicated only if compliance or latency isolation requires it, and then
+the GPU footprint is the number that decides the model.
+
+Caveats before switching the demo:
+
+- **One 47 s dictation, one speaker.** Run it on more and longer dictations.
+- **Reasoning must be disabled** (`reasoning: {"enabled": false}`) for these
+  latencies. The demo does not send it yet; `structure_transcript(..., extra_body=)`
+  now accepts it. Not confirmed to behave the same on a dedicated endpoint.
+- **No v2 endpoint has been created** for any of these; the catalog lists them.
+- **Model provenance.** DeepSeek, GLM, Qwen and MiniMax are developed by Chinese
+  labs. Some healthcare buyers have procurement policies about that regardless of
+  where Together hosts the weights. Ask Luminary Health early.
+- **Billing codes** need a coder's judgement; the expected-code set is mine.
 
 For the speech-to-text recommendation, see
 [`model-selection-asr.md`](model-selection-asr.md).

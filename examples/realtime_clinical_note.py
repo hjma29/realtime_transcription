@@ -72,19 +72,35 @@ class ClinicalNote(BaseModel):
 # --- structured JSON note, given a transcript (blocking sync call) -----------
 
 
-def structure_transcript(
-    transcript: str, previous_note: ClinicalNote | None = None
-) -> ClinicalNote:
-    """Turn a raw ASR transcript into a schema-constrained clinical note.
+SYSTEM_PROMPT = (
+    "You are a clinical documentation assistant. The following is a "
+    "raw speech-to-text transcript of a physician dictating a patient "
+    "visit — possibly incomplete, since the visit may still be in "
+    "progress. It may contain ASR artifacts (e.g. spoken punctuation "
+    "like 'full stop' or 'new para' transcribed literally) — normalize "
+    "those into real punctuation/paragraphs. Extract a structured "
+    "clinical note matching the given JSON schema from whatever has "
+    "been said so far. For draft_billing_codes: as soon as you can "
+    "identify a probable diagnosis or procedure/service from the "
+    "dictation (even a single symptom or plan item is enough), ALWAYS "
+    "include your single best-guess code — do not leave this empty "
+    "just because you are not 100% certain. Format each entry as "
+    "'ICD-10-CM <code> - <short label>' for diagnoses and 'CPT <code> "
+    "- <short label>' for procedures/E&M services, e.g. 'ICD-10-CM "
+    "R51.9 - Headache, unspecified'. These are draft suggestions, not "
+    "a verified lookup — requires_human_review must always be true "
+    "regardless of your confidence. If a previously extracted note is "
+    "provided, update it incrementally rather than re-deriving "
+    "everything from scratch — keep confirmed fields stable across "
+    "updates."
 
-    If `previous_note` is given (the last live-update result), it's passed
-    back in as context and the model is told to treat it as "sticky" —
-    only add/refine fields, never silently drop a previously-confirmed
-    field just because the newest transcript increment is mid-sentence or
-    still being ASR-corrected. Without this, every call re-derives the
-    whole note from scratch and fields can flicker on/off between updates.
-    """
-    client = Together()
+)
+
+
+def build_messages(
+    transcript: str, previous_note: ClinicalNote | None = None
+) -> list[dict]:
+    """The exact chat messages used for structuring (shared with eval/)."""
     user_content = transcript
     if previous_note is not None:
         user_content = (
@@ -95,45 +111,50 @@ def structure_transcript(
             f"{json.dumps(previous_note.model_dump())}\n\n"
             f"Full transcript so far:\n{transcript}"
         )
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
 
-    completion = client.chat.completions.create(
-        model=STRUCTURING_MODEL,
-        temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a clinical documentation assistant. The following is a "
-                    "raw speech-to-text transcript of a physician dictating a patient "
-                    "visit — possibly incomplete, since the visit may still be in "
-                    "progress. It may contain ASR artifacts (e.g. spoken punctuation "
-                    "like 'full stop' or 'new para' transcribed literally) — normalize "
-                    "those into real punctuation/paragraphs. Extract a structured "
-                    "clinical note matching the given JSON schema from whatever has "
-                    "been said so far. For draft_billing_codes: as soon as you can "
-                    "identify a probable diagnosis or procedure/service from the "
-                    "dictation (even a single symptom or plan item is enough), ALWAYS "
-                    "include your single best-guess code — do not leave this empty "
-                    "just because you are not 100% certain. Format each entry as "
-                    "'ICD-10-CM <code> - <short label>' for diagnoses and 'CPT <code> "
-                    "- <short label>' for procedures/E&M services, e.g. 'ICD-10-CM "
-                    "R51.9 - Headache, unspecified'. These are draft suggestions, not "
-                    "a verified lookup — requires_human_review must always be true "
-                    "regardless of your confidence. If a previously extracted note is "
-                    "provided, update it incrementally rather than re-deriving "
-                    "everything from scratch — keep confirmed fields stable across "
-                    "updates."
-                ),
-            },
-            {"role": "user", "content": user_content},
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "clinical_note",
-                "schema": ClinicalNote.model_json_schema(),
-            },
+
+def response_format() -> dict:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "clinical_note",
+            "schema": ClinicalNote.model_json_schema(),
         },
+    }
+
+
+def structure_transcript(
+    transcript: str,
+    previous_note: ClinicalNote | None = None,
+    *,
+    model: str | None = None,
+    extra_body: dict | None = None,
+) -> ClinicalNote:
+    """Turn a raw ASR transcript into a schema-constrained clinical note.
+
+    If `previous_note` is given (the last live-update result), it's passed
+    back in as context and the model is told to treat it as "sticky" —
+    only add/refine fields, never silently drop a previously-confirmed
+    field just because the newest transcript increment is mid-sentence or
+    still being ASR-corrected. Without this, every call re-derives the
+    whole note from scratch and fields can flicker on/off between updates.
+
+    `model` / `extra_body` default to the configured model and nothing extra;
+    they exist so the same code path can be evaluated against other models
+    (e.g. `extra_body={"reasoning": {"enabled": False}}`).
+    """
+    client = Together()
+    kwargs = {"extra_body": extra_body} if extra_body else {}
+    completion = client.chat.completions.create(
+        model=model or STRUCTURING_MODEL,
+        temperature=0,
+        messages=build_messages(transcript, previous_note),
+        response_format=response_format(),
+        **kwargs,
     )
     note = ClinicalNote.model_validate_json(completion.choices[0].message.content)
     # Compliance guardrail: the JSON schema's "default: true" only applies

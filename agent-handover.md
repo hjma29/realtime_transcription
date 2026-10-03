@@ -229,8 +229,8 @@ session history for how a synthetic WAV was first created).
     is stale. Not confirmed by deployment. See `model-selection-llm.md`.
   - **v1 vs v2 for dedicated**: prefer **v2**. v1 is "still supported, but will
     be deprecated by the end of 2026" and new v1 endpoints can't be created
-    (`endpoints_v1_create_access_disabled`). v2 launched 2026-07-16, is cheaper
-    (H100 $3.99/hr vs $5.40), bills only ready replicas, and ships A/B tests and
+    (`endpoints_v1_create_access_disabled`). v2 launched 2026-07-16, prices an H100 at
+    $5.49/hr per its pricing API (docs page says $3.99; v1 was $5.40), bills only ready replicas, and ships A/B tests and
     shadow experiments, which is Together's recommended way to compare
     candidates (e.g. FP8 vs BF16). See `model-selection-llm.md`.
   - **API hosts / "v2"**: use `https://api.together.ai/v1` for all inference.

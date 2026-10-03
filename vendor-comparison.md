@@ -12,8 +12,9 @@ independent leaderboard (Artificial Analysis). Companion to
    Together matches the competitor price exactly on six of eight models. It is
    cheaper only on Kimi K3 (−10%) and ~8% *more* expensive than Baseten on
    DeepSeek V4 Flash 0731. Price will not win or lose this deal.
-2. **Dedicated GPU list prices differ a lot, and Together's is lowest.** One
-   H100: Together **$3.99/hr**, Baseten $6.50/hr, Fireworks $8.00/hr.
+2. **Dedicated GPU list prices: Together is lowest, by less than I first said.**
+   One H100: Together **$5.49/hr** (pricing API), Baseten $6.50, Fireworks $8.00.
+   Together's docs page says $3.99; the API does not reproduce it.
 3. **ASR is where the vendors really differ.** Together sells four managed STT
    models per audio minute. Baseten delivers ASR only as models *you deploy* on
    dedicated GPUs, and leads with a model Together does not host (Qwen3-ASR).
@@ -94,11 +95,11 @@ offers no region selection; region control is a dedicated-endpoint feature.
 | GPU | Together (DMI v2) | Baseten | Fireworks |
 | --- | --- | --- | --- |
 | A100 80GB | — | $0.06667/min = **$4.00/hr** | — |
-| H100 80GB | **$3.99/hr** | $0.10833/min = **$6.50/hr** | **$8.00/hr** ($0.134/min) |
+| H100 80GB | **$5.49/hr** | $0.10833/min = **$6.50/hr** | **$8.00/hr** ($0.134/min) |
 | H200 | contact sales | — | $8.00/hr |
 | B200 | **$8.99/hr** | $0.16633/min = **$9.98/hr** | $13.00/hr |
 
-On one H100, Together is **~39% cheaper than Baseten and 50% cheaper than
+On one H100, Together is **~15% cheaper than Baseten and ~31% cheaper than
 Fireworks**; on B200, ~10% and ~31% cheaper.
 
 Billing nuances: Fireworks bills **per GPU-second with no start-up charge**.
@@ -107,8 +108,8 @@ cold start, and bills nothing while stopped or scaled to zero. Fireworks
 region-restricted deployments carry a **1.5× premium**. All figures are list
 prices; volume and commit discounts were not visible.
 
-*Together's legacy v1 price was $5.40/hr per H100; v2 (the current platform) is
-$3.99.*
+*Together's legacy v1 price was $5.40/hr per H100. v2's pricing API returns
+$5.49; the docs pricing page lists $3.99. I could not reconcile the two.*
 
 ## 4. Compliance
 
@@ -185,7 +186,7 @@ did not verify them.
 
 **Stronger (evidenced):**
 
-- **Lowest dedicated GPU list price** (§3), ~39% under Baseten on H100.
+- **Lowest dedicated GPU list price** (§3), ~15% under Baseten on H100.
 - **Managed per-minute ASR** at a flat $0.0015/min; Baseten requires you to
   operate ASR on GPUs, Fireworks shows none.
 - **Built-in A/B tests and shadow experiments** on dedicated v2, which is

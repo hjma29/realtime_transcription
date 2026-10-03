@@ -96,11 +96,9 @@ all four serverless STT models.** Sources agree: the model catalog's
 Because the four models cost the same, price does not separate them — the
 choice is accuracy and latency.
 
-**Dedicated GPU pricing differs between v1 and v2, and v2 is cheaper.** Per
-Together's docs, one H100 costs **$3.99/hour on dedicated v2** (the current
-platform; [pricing](https://docs.together.ai/docs/dedicated-endpoints/pricing))
-versus **$5.40/hour on legacy v1**. Multi-GPU configs scale linearly (4x H100 =
-$15.96/hr on v2). v2 bills per ready replica per minute, and a deployment
+**Dedicated GPU pricing: about $5.49/hour per H100 on v2, roughly the same as
+legacy v1 ($5.40).** Together's live pricing API (`GET /v2/public/inference-instance-types`) quotes **$5.49/hour per H100** and **$8.99 per B200**. Together's docs pricing page lists H100 at $3.99, which the API does not reproduce; the API figure is used throughout because it is the quote the platform itself returns, but confirm with Together before quoting a customer. Multi-GPU configs scale linearly (4x H100 =
+$21.96/hr). v2 bills per ready replica per minute, and a deployment
 scaled to zero or stopped costs nothing — so a short evaluation costs only the
 minutes it runs. Provisioning and cold-start time are not billed.
 
@@ -111,17 +109,16 @@ would cost *if* it becomes available.
 
 ### Break-even
 
-`$3.99/hr ÷ $0.09 per audio-hour ≈ 44`. A dedicated H100 would only beat
-serverless at about **44 audio-hours transcribed per wall-clock hour** —
-roughly 44 live streams sustained around the clock (60 at the legacy $5.40
-rate). A clinic with morning-peak dictation sits far below that, so **on cost
+`$5.49/hr ÷ $0.09 per audio-hour ≈ 61`. A dedicated H100 would only beat
+serverless at about **61 audio-hours transcribed per wall-clock hour** —
+roughly 61 live streams sustained around the clock. A clinic with morning-peak dictation sits far below that, so **on cost
 alone the ASR tier stays serverless for a long time.** Dedicated ASR would be
 justified by a BAA/compliance requirement or by tail latency under load, not by
 price.
 
 Caveats on that arithmetic:
 
-- It assumes one H100 can serve ~44 concurrent streams. **Not measured**, so
+- It assumes one H100 can serve ~61 concurrent streams. **Not measured**, so
   the true break-even is probably higher.
 - v2's scale-to-zero billing narrows the idle-time penalty, but a deployment
   that must stay warm for low latency still bills continuously.
@@ -184,8 +181,8 @@ likely source of confusion:
 **v1 vs. v2 for dedicated:** v1 is "still supported, but … will be deprecated by
 the end of 2026" (Together's v1 docs). Running v1 endpoints keep serving, but
 new ones can't be created, so **v2 is the only way to start a dedicated
-evaluation** — and it is cheaper ($3.99/hr per H100 vs. $5.40). Prefer v2; there
-is no reason to touch v1 for new work.
+evaluation**, at about the same GPU price ($5.49/hr per H100 vs. $5.40 on v1).
+Prefer v2; there is no reason to touch v1 for new work.
 
 **What a customer should use:** `https://api.together.ai/v1` for all inference
 calls (serverless or dedicated); the **v2** dedicated-endpoints API/CLI to
@@ -330,7 +327,31 @@ gate a clinical release on.
 
 ---
 
-## Measured results (synthetic corpus, 2026-10-02)
+## Real-audio results (golden dictation, 2026-10-02)
+
+Four serverless models on a real 47 s clinical dictation with a known script, three
+runs each. Audio, script, scoring rules and raw output:
+[`eval/golden-dictation.md`](eval/golden-dictation.md). **These supersede the
+text-to-speech numbers further down.**
+
+| Model | Word error rate | Critical-term error rate | What went wrong |
+| --- | --- | --- | --- |
+| **`openai/whisper-large-v3`** | **2.1%** | **0.0%** | Stray "you" before "We'll". Every drug name and number correct |
+| `nvidia/nemotron-3-asr-streaming-0.6b` | 8.0% (7.3 - 9.4) | 20.0% | "lacinopril", "a torvistatin", "Hyper tension" |
+| `nvidia/parakeet-tdt-0.6b-v3` | 10.4% | 13.3% | **"lisinopril" dropped entirely**, "torbostatin", stray "Yeah." and "Ha ha." |
+| `nvidia/nemotron-3.5-asr-streaming-0.6b` | 22.9% | 26.7% | Garbled fragments, "licinipral", "turbostatin" |
+
+Whisper, Parakeet and Nemotron-3.5 were identical on all three runs; Nemotron-3
+varied. In a clinical note, a dropped or misspelled drug name is the dangerous
+failure, and Whisper is the only model that did not make one.
+
+The text-to-speech ranking flipped: Nemotron-3 looked best on critical terms and
+latency there, and is clearly behind on real audio. That is the failure the earlier
+caveat warned about. **Caveat that still applies:** one dictation, and I did not
+check whether the audio is synthetic speech with inserted sounds; if it is, real
+dictation will be harder and every error rate here is optimistic.
+
+## Measured results (synthetic corpus, 2026-10-02) — superseded
 
 Three TTS clinical dictations, streamed at real-time pace, single concurrency:
 
@@ -471,7 +492,7 @@ Any one of these settles it:
   deployable on dedicated model inference v2, and whether a dedicated STT
   endpoint serves the realtime WebSocket API.
 - Attempt `tg beta endpoints deploy` for `openai/whisper-large-v3` on v2. If
-  supported it creates a billed endpoint (an H100 is ≈ $0.067/min on v2, and a
+  supported it creates a billed endpoint (an H100 is ≈ $0.09/min on v2, and a
   stopped deployment bills nothing), so only with deliberate intent; if
   unsupported it should fail without cost.
 - Re-check `GET api.together.ai/v2/supported-models?search=whisper` periodically
@@ -511,27 +532,21 @@ and only applies if both modes exist.
 
 ## Current recommendation
 
-**Stay on `openai/whisper-large-v3`.** It had the best WER on the sample corpus,
-it is the model the live demo is built and rehearsed on, and nothing measured is
-strong enough to justify changing it.
+**Use `openai/whisper-large-v3`.** On a real dictation it was the only model with
+no drug-name errors (2.1% word error, 0% on critical terms, stable across runs),
+it costs the same as the others ($0.0015 per audio minute), and it is what the
+demo already runs on. The earlier hedge was because the only data was
+text-to-speech; the real-audio result removes it.
 
-What the evidence does support:
+- **Parakeet** and **Nemotron-3** made clinically relevant drug-name errors
+  (dropped "lisinopril"; "lacinopril", "torvistatin"). Not recommended.
+- **Nemotron-3.5** is not competitive (22.9% word error).
+- **Deepgram models:** not evaluated; dedicated-only and not in the v2 catalog.
 
-- **`nvidia/nemotron-3-asr-streaming-0.6b` is the challenger worth testing** —
-  best CCER and lowest p95 on the sample corpus, with a small 0.6B footprint.
-  But the margins are inside measured noise, so it earns a real-audio
-  re-test, not a switch.
-- **`nvidia/parakeet-tdt-0.6b-v3`** is a close second on WER and worth including
-  in that re-test.
-- **`nemotron-3.5` is not competitive** on this data (7.1% WER, ~3x Whisper's).
-  It was a single run, but the gap is several times larger than the ~1-point
-  WER noise seen elsewhere.
-- **Deepgram models: not evaluated.** Dedicated-only; test only if there is a
-  reason to expect they'd win.
-
-The decision rule for the re-test: gate on **CCER first, then WER, then p95** —
-and only change models if the winner clears the run-to-run noise measured
-above, on real audio, with repeats.
+What is still unproven: a single 47 s dictation. Before the production decision,
+add more and noisier dictations (the Eka Care medical ASR dataset in the reference
+section below is a candidate), and consider that Whisper can insert stray words on
+pauses ("you" here), which `eval/golden-dictation.md` scores as an error.
 
 ---
 

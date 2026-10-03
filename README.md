@@ -107,6 +107,12 @@ in the repo for reference:
   serverless probe, and v2/legacy dedicated status, as a table or `--json`:
   `python3 examples/list_models.py --kind asr` or `--kind llm --search llama`.
   See [`model-selection-llm.md`](model-selection-llm.md#listing-models-with-the-cli-and-this-repos-tool).
+- **[`eval/`](eval/golden-dictation.md)** — the golden evaluation set: one real
+  clinical dictation, its 16 kHz WAV, a scoring reference, and
+  `eval/run_llm_eval.py`, which replays the pipeline against any structuring
+  model and reports quality, latency, serverless cost per visit and dedicated
+  GPU cost. Start here to compare models; results are in
+  [`eval/golden-dictation.md`](eval/golden-dictation.md).
 - **`examples/benchmark_asr.py`** — ASR accuracy *and* latency in one pass:
   WER, CER, clinical-critical error rate (CCER), TTFS p50/p95 and RTF across
   any set of STT models, with `--concurrency` to find where serverless

@@ -155,6 +155,9 @@ def _words_to_digits(tokens: list[str]) -> list[str]:
 def normalize(text: str) -> str:
     """Whisper-style English normalization, applied identically to both sides."""
     t = text.lower()
+    # Non-speech annotations ("[coughs]", "(laughs)") are not spoken words and
+    # must not count as errors on either side.
+    t = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", t)
     for a, b in _CONTRACTIONS.items():
         t = t.replace(a, b)
     # spoken punctuation artifacts the dictation pipeline also strips

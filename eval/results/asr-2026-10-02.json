@@ -1,0 +1,211 @@
+{
+ "date": "2026-10-02",
+ "audio": "eval/golden-dictation.wav",
+ "reference": "eval/golden-dictation.clean.txt",
+ "runs": [
+  {
+   "model": "nvidia/nemotron-3-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.07291666666666667,
+    "wer_raw": 0.27472527472527475,
+    "cer": 0.01607142857142857,
+    "ccer": 0.2,
+    "ttfs_mean": 0.02790960407755705,
+    "ttfs_p50": -0.011796000000323659,
+    "ttfs_p95": -0.001996375003363582,
+    "segments": 12,
+    "rtf": 1.100374521119963
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol.  He has been taking his blood pressure medication regularly.  No chest pain, shortness of breath  His blood pressure in the office today is one hundred thirty eight over eighty six.  His weight is stable. He is well  appearing and in no acute distress. Heart  is regular rate and rhythm, no murmurs. Lungs are  clear bilaterally.  Assessment. Hyper tension and hyperlipidemia. We discuss  to continue lacinopril ten milligrams and a torvistatin twenty milligrams daily.  We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/nemotron-3-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.09375,
+    "wer_raw": 0.2857142857142857,
+    "cer": 0.017857142857142856,
+    "ccer": 0.2,
+    "ttfs_mean": 0.027359919823628214,
+    "ttfs_p50": -0.011236792017008668,
+    "ttfs_p95": -0.0019480000133640374,
+    "segments": 12,
+    "rtf": 1.100418872896204
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol.  He has been taking his blood pressure medication regularly.  No chest pain, shortness of breath  His blood pressure in the office today is one hundred thirty eight over eighty six.  His weight is stable. He is well  appearing and in no acute distress. Heart  is regular rate and rhythm, no murmurs. Lungs are  clear bilaterally. Assess ment. Hyper tension and hyperlipidemia. We discuss  to continue lacinopril ten milligrams and a torvistatin twenty milligrams daily.  We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/nemotron-3-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.07291666666666667,
+    "wer_raw": 0.27472527472527475,
+    "cer": 0.01607142857142857,
+    "ccer": 0.2,
+    "ttfs_mean": 0.022446680253565443,
+    "ttfs_p50": -0.012230625003574858,
+    "ttfs_p95": -0.0035932500089970176,
+    "segments": 12,
+    "rtf": 1.1003417212696867
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol.  He has been taking his blood pressure medication regularly.  No chest pain, shortness of breath  His blood pressure in the office today is one hundred thirty eight over eighty six.  His weight is stable. He is well  appearing and in no acute distress. Heart  is regular rate and rhythm, no murmurs. Lungs are  clear bilaterally.  Assessment. Hyper tension and hyperlipidemia. We discuss  to continue lacinopril ten milligrams and a torvistatin twenty milligrams daily.  We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.22916666666666666,
+    "wer_raw": 0.45054945054945056,
+    "cer": 0.10892857142857143,
+    "ccer": 0.26666666666666666,
+    "ttfs_mean": 0.029532954817385198,
+    "ttfs_p50": -0.007393167028205028,
+    "ttfs_p95": -0.0052116250037208545,
+    "segments": 12,
+    "rtf": 1.1047587992157724
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol   He has been taking his blood pressure medication regularly.   No chest pain, shortness of breath.   His blood pressure in the office today is one hundred thirty eight over eighty six.   His.  His.  well.   . . .  distress.  Hear t is regular rate and rhythm, no murmurs.  Lungs are  clear by laterally.   Assessment, hy pertension and hyperlipidemia.  We discu ss to continue licinipral ten milligrams and a turbostatin twenty milligrams daily.   We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.22916666666666666,
+    "wer_raw": 0.45054945054945056,
+    "cer": 0.10892857142857143,
+    "ccer": 0.26666666666666666,
+    "ttfs_mean": 0.02491301768049925,
+    "ttfs_p50": -0.004599707981107315,
+    "ttfs_p95": 0.00022250001784485107,
+    "segments": 12,
+    "rtf": 1.1052158675337322
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol   He has been taking his blood pressure medication regularly.   No chest pain, shortness of breath.   His blood pressure in the office today is one hundred thirty eight over eighty six.   His.  His.  well.   . . .  distress.  Hear t is regular rate and rhythm, no murmurs.  Lungs are  clear by laterally.   Assessment, hy pertension and hyperlipidemia.  We discu ss to continue licinipral ten milligrams and a turbostatin twenty milligrams daily.   We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.22916666666666666,
+    "wer_raw": 0.45054945054945056,
+    "cer": 0.10892857142857143,
+    "ccer": 0.26666666666666666,
+    "ttfs_mean": 0.026989513920154213,
+    "ttfs_p50": -0.01145408300217099,
+    "ttfs_p95": -0.004248624981846305,
+    "segments": 12,
+    "rtf": 1.1003819469969023
+   },
+   "hypothesis": "Patient is a fifty two year old male for follow up of hypertension and elevated cholesterol   He has been taking his blood pressure medication regularly.   No chest pain, shortness of breath.   His blood pressure in the office today is one hundred thirty eight over eighty six.   His.  His.  well.   . . .  distress.  Hear t is regular rate and rhythm, no murmurs.  Lungs are  clear by laterally.   Assessment, hy pertension and hyperlipidemia.  We discu ss to continue licinipral ten milligrams and a turbostatin twenty milligrams daily.   We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/parakeet-tdt-0.6b-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.10416666666666667,
+    "wer_raw": 0.2087912087912088,
+    "cer": 0.09464285714285714,
+    "ccer": 0.13333333333333333,
+    "ttfs_mean": -0.038141187843783494,
+    "ttfs_p50": -0.035609583981567994,
+    "ttfs_p95": -0.0062314589915359875,
+    "segments": 14,
+    "rtf": 1.0892610623889278
+   },
+   "hypothesis": "Patient is a 52-year-old male for follow-up of hypertension and elevated. Cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Yeah. Hypertension and hyperlipidemia. ten milligrams and a torbostatin twenty milligrams daily. Ha ha. will repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/parakeet-tdt-0.6b-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.10416666666666667,
+    "wer_raw": 0.2087912087912088,
+    "cer": 0.09464285714285714,
+    "ccer": 0.13333333333333333,
+    "ttfs_mean": -0.03276099706126821,
+    "ttfs_p50": -0.022331541997843374,
+    "ttfs_p95": -0.0004125829902505984,
+    "segments": 14,
+    "rtf": 1.0892200157276208
+   },
+   "hypothesis": "Patient is a 52-year-old male for follow-up of hypertension and elevated. Cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Yeah. Hypertension and hyperlipidemia. ten milligrams and a torbostatin twenty milligrams daily. Ha ha. will repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "nvidia/parakeet-tdt-0.6b-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.10416666666666667,
+    "wer_raw": 0.2087912087912088,
+    "cer": 0.09464285714285714,
+    "ccer": 0.13333333333333333,
+    "ttfs_mean": -0.06151711042205456,
+    "ttfs_p50": -0.08268358398927234,
+    "ttfs_p95": -0.008058416994754403,
+    "segments": 14,
+    "rtf": 1.087948373603107
+   },
+   "hypothesis": "Patient is a 52-year-old male for follow-up of hypertension and elevated. Cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Yeah. Hypertension and hyperlipidemia. ten milligrams and a torbostatin twenty milligrams daily. Ha ha. will repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "openai/whisper-large-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.020833333333333332,
+    "wer_raw": 0.08791208791208792,
+    "cer": 0.010714285714285714,
+    "ccer": 0.0,
+    "ttfs_mean": -0.03514194963458366,
+    "ttfs_p50": -0.03583874999312542,
+    "ttfs_p95": -0.001223499991468202,
+    "segments": 14,
+    "rtf": 1.0877061063482745
+   },
+   "hypothesis": "Patient is a 52-year-old male for follow-up of hypertension and elevated cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Assessment. hypertension, and hyperlipidemia. We discuss to continue lisinopril. 10 milligrams and atorvastatin 20 milligrams daily. you We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "openai/whisper-large-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.020833333333333332,
+    "wer_raw": 0.08791208791208792,
+    "cer": 0.010714285714285714,
+    "ccer": 0.0,
+    "ttfs_mean": -0.051048821713941414,
+    "ttfs_p50": -0.047034042002636056,
+    "ttfs_p95": -0.028892999992237378,
+    "segments": 14,
+    "rtf": 1.0891528970716005
+   },
+   "hypothesis": "Patient is a 52-year-old male for follow-up of hypertension and elevated cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Assessment. hypertension, and hyperlipidemia. We discuss to continue lisinopril. 10 milligrams and atorvastatin 20 milligrams daily. you We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  },
+  {
+   "model": "openai/whisper-large-v3",
+   "summary": {
+    "ok": 1,
+    "total": 1,
+    "wer": 0.020833333333333332,
+    "wer_raw": 0.12087912087912088,
+    "cer": 0.010714285714285714,
+    "ccer": 0.0,
+    "ttfs_mean": -0.03990989856912514,
+    "ttfs_p50": -0.03637395800906518,
+    "ttfs_p95": -0.013847500004338542,
+    "segments": 14,
+    "rtf": 1.0893668294079761
+   },
+   "hypothesis": "Patient is a 52 year old male for follow-up of hypertension and elevated cholesterol. He's been taking his blood pressure medication regularly. No chest pain, shortness of breath. His blood pressure in the office today is 138 over 86. His weight is stable. He is well appearing and in no acute distress. Heart is regular rate and rhythm, no murmurs. Lungs are clear bilaterally. Assessment. hypertension, and hyperlipidemia. We discuss to continue lisinopril. 10 milligrams and atorvastatin 20 milligrams daily. you We'll repeat a basic metabolic panel and lipid panel before his next visit."
+  }
+ ]
+}

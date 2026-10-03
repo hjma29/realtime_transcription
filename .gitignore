@@ -10,3 +10,6 @@ __marimo__/
 # Vercel project link (local project/org IDs)
 .vercel
 .env*
+
+# Golden evaluation clip (see eval/golden-dictation.md)
+!eval/*.wav
