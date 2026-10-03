@@ -101,7 +101,7 @@ Browser mic (getUserMedia)
        -> Together realtime ASR session (openai/whisper-large-v3)
             - interim deltas -> pushed to browser live
             - finalized segments -> TTFS computed, pushed to browser
-       -> incremental LLM structuring (Llama-3.3-70B-Instruct-Turbo),
+       -> incremental LLM structuring (Qwen/Qwen3.5-9B, thinking off),
           debounced so calls never stack up, reusing
           examples/realtime_clinical_note.py's structure_transcript()
             -> structured note JSON -> pushed to browser, rendered as an

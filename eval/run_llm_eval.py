@@ -54,6 +54,8 @@ DEFAULT_MODELS = [
 ]
 # Not reasoning models: never send the reasoning switch.
 NO_REASONING_FLAG = {"meta-llama/Llama-3.3-70B-Instruct-Turbo"}
+# Set by --thinking: leave the model in its default thinking mode (no switch sent).
+THINKING = False
 GPU_KEY = {"NVIDIA-H100": "h100-80gb", "NVIDIA-B200": "b200-180gb"}
 
 # --- rubric ------------------------------------------------------------------
@@ -191,11 +193,11 @@ async def call(client, model: str, transcript: str, prev, state: dict):
     body = {
         "model": model,
         "temperature": 0,
-        "max_tokens": 3000,
+        "max_tokens": 16000 if THINKING else 3000,  # thinking tokens count against the cap
         "messages": rcn.build_messages(transcript, prev),
         "response_format": rcn.response_format(),
     }
-    use_flag = model not in NO_REASONING_FLAG and state.get("flag", True)
+    use_flag = model not in NO_REASONING_FLAG and state.get("flag", True) and not THINKING
     if use_flag:
         body["reasoning"] = {"enabled": False}
     t0 = time.perf_counter()
@@ -279,11 +281,14 @@ async def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--models", nargs="*", default=DEFAULT_MODELS)
     ap.add_argument("--runs", type=int, default=3)
+    ap.add_argument("--thinking", action="store_true", help="leave reasoning models in their default thinking mode (default: switch it off)")
     ap.add_argument("--transcript", type=Path, default=ROOT / "eval/golden-dictation.clean.txt")
     ap.add_argument("--tagged", type=Path, default=ROOT / "eval/golden-dictation.txt")
     ap.add_argument("--regrade", type=Path, help="re-score the notes saved in this results file (no model calls)")
     ap.add_argument("--out", type=Path, default=ROOT / f"eval/results/llm-{date.today():%Y-%m-%d}.json")
     a = ap.parse_args()
+    global THINKING
+    THINKING = a.thinking
     key = os.environ.get("TOGETHER_API_KEY") or sys.exit("set TOGETHER_API_KEY")
 
     steps = sentences(a.transcript.read_text())

@@ -135,17 +135,6 @@ async def structure_transcript_streaming(
     standard LLM-serving latency/throughput numbers, distinct from the
     end-to-end "structuring_ms" wall-clock figure already tracked.
     """
-    user_content = transcript
-    if previous_note is not None:
-        user_content = (
-            "Previously extracted note (treat as a sticky baseline — keep "
-            "every field unless the new transcript below clearly "
-            "contradicts or refines it; never drop a confirmed field just "
-            "because the newest sentence is incomplete):\n"
-            f"{json.dumps(previous_note.model_dump())}\n\n"
-            f"Full transcript so far:\n{transcript}"
-        )
-
     t0 = time.monotonic()
     ttft_s: float | None = None
     text_parts: list[str] = []
@@ -154,41 +143,9 @@ async def structure_transcript_streaming(
     stream = await client.chat.completions.create(
         model=rcn.STRUCTURING_MODEL,
         temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a clinical documentation assistant. The following is a "
-                    "raw speech-to-text transcript of a physician dictating a patient "
-                    "visit — possibly incomplete, since the visit may still be in "
-                    "progress. It may contain ASR artifacts (e.g. spoken punctuation "
-                    "like 'full stop' or 'new para' transcribed literally) — normalize "
-                    "those into real punctuation/paragraphs. Extract a structured "
-                    "clinical note matching the given JSON schema from whatever has "
-                    "been said so far. For draft_billing_codes: as soon as you can "
-                    "identify a probable diagnosis or procedure/service from the "
-                    "dictation (even a single symptom or plan item is enough), ALWAYS "
-                    "include your single best-guess code — do not leave this empty "
-                    "just because you are not 100% certain. Format each entry as "
-                    "'ICD-10-CM <code> - <short label>' for diagnoses and 'CPT <code> "
-                    "- <short label>' for procedures/E&M services, e.g. 'ICD-10-CM "
-                    "R51.9 - Headache, unspecified'. These are draft suggestions, not "
-                    "a verified lookup — requires_human_review must always be true "
-                    "regardless of your confidence. If a previously extracted note is "
-                    "provided, update it incrementally rather than re-deriving "
-                    "everything from scratch — keep confirmed fields stable across "
-                    "updates."
-                ),
-            },
-            {"role": "user", "content": user_content},
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "clinical_note",
-                "schema": rcn.ClinicalNote.model_json_schema(),
-            },
-        },
+        messages=rcn.build_messages(transcript, previous_note),
+        response_format=rcn.response_format(),
+        extra_body=rcn.STRUCTURING_EXTRA_BODY,
         stream=True,
     )
     async for chunk in stream:

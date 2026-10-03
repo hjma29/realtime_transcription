@@ -14,7 +14,9 @@ pipeline diagram, `DEMO.md` for the exact commands to run live.
 
 **Primary script**: `examples/realtime_clinical_note.py` — mic or WAV file
 in, streaming ASR (`openai/whisper-large-v3`), incremental JSON clinical
-note out (currently `meta-llama/Llama-3.3-70B-Instruct-Turbo`).
+note out (currently `Qwen/Qwen3.5-9B` with `reasoning: {enabled: false}`;
+switched from Llama-3.3-70B-Turbo on 2026-10-02 because Turbo is serverless-only,
+see `model-selection-llm.md` and `eval/golden-dictation.md`).
 
 **Primary demo surface** (added 2026-10-01): `web/server.py` — a local
 FastAPI + WebSocket app wrapping that same pipeline with a browser UI
@@ -260,14 +262,15 @@ session history for how a synthetic WAV was first created).
       (`streaming_required` on non-streamed calls). JSON schema does work
       via streaming, but measured **37.7s mean** over 3 runs.
     - Related serverless models also measured: `Qwen3.8-Flash` 48.0s,
-      `Qwen3.5-9B` 34.0s (2/3). These are reasoning models — billing-code
-      quality was comparable to Llama, but latency is 15-20x over budget
-      versus Llama-3.3-70B-Turbo's **2.3s** on the identical prompt.
+      `Qwen3.5-9B` 34.0s (2/3). **SUPERSEDED**: those were measured with
+      thinking on. With it off, Qwen3.5-9B is ~2.5 s/call and 20/20 on the
+      golden dictation, and is now the demo's model.
     - Takeaway: do not swap the structuring model on model-size reasoning
       alone. Verify serverless availability + sync JSON + latency first.
-  - **Current recommendation**: stay on `Llama-3.3-70B-Instruct-Turbo`;
-    revisit `MiniMax-M3` after a clean re-test; treat `gpt-oss-120b` as
-    disqualified on latency.
+  - **Current recommendation**: `Qwen/Qwen3.5-9B` (thinking off), chosen under the
+    rule that a model must be on both serverless and dedicated. Serverless is
+    FP8, and the matching dedicated profile is 1x H100 FP8 at $5.49/hr. Lead
+    alternative for speed: `DeepSeek-V4.1-Flash`. See `model-selection-llm.md`.
   - Next step if the user wants it: a "Dedicated Endpoint readiness"
     section in `ARCHITECTURE.md` / `DEMO.md`. Not started.
 

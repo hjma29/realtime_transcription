@@ -4,7 +4,7 @@
 Single command, single file, no manual copy/paste: streams audio (live
 mic or a WAV file) to Together's realtime ASR (openai/whisper-large-v3),
 and structures the transcript into a JSON clinical note + draft billing
-codes (Llama-3.3-70B-Instruct-Turbo, response_format: json_schema).
+codes (Qwen/Qwen3.5-9B, response_format: json_schema).
 
 Structuring runs INCREMENTALLY after every finalized utterance (debounced
 so calls never stack up), not just once at the end -- this is what makes
@@ -44,7 +44,10 @@ from together.realtime import (
 )
 
 ASR_MODEL = "openai/whisper-large-v3"
-STRUCTURING_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+STRUCTURING_MODEL = "Qwen/Qwen3.5-9B"  # serverless (FP8) and a 1x H100 dedicated profile
+# Qwen3.5 is a reasoning model. Left alone it "thinks" first, which made calls
+# 10x slower with no gain on this task; switch it off (see eval/golden-dictation.md).
+STRUCTURING_EXTRA_BODY = {"reasoning": {"enabled": False}}
 
 SAMPLE_RATE = 16_000
 CHUNK_MS = 100
@@ -148,9 +151,13 @@ def structure_transcript(
     (e.g. `extra_body={"reasoning": {"enabled": False}}`).
     """
     client = Together()
+    if model is None:
+        model = STRUCTURING_MODEL
+        if extra_body is None:
+            extra_body = STRUCTURING_EXTRA_BODY
     kwargs = {"extra_body": extra_body} if extra_body else {}
     completion = client.chat.completions.create(
-        model=model or STRUCTURING_MODEL,
+        model=model,
         temperature=0,
         messages=build_messages(transcript, previous_note),
         response_format=response_format(),
